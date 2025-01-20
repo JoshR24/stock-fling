@@ -16,21 +16,55 @@ export interface Stock {
   }[];
 }
 
-const defaultStocks = [
-  'AAPL',
-  'GOOGL',
-  'MSFT',
-  'AMZN',
-  'META',
-  'TSLA',
-  'NVDA',
-  'JPM',
-  'V',
-  'WMT'
+// Extended list of popular stocks across different sectors
+const stockUniverse = [
+  // Technology
+  'AAPL', 'GOOGL', 'MSFT', 'META', 'NVDA', 'AMD', 'INTC', 'TSM', 'CSCO', 'ORCL',
+  // E-commerce & Internet
+  'AMZN', 'BABA', 'SHOP', 'ETSY', 'EBAY', 'PYPL', 'SQ', 'ABNB',
+  // Electric Vehicles & Auto
+  'TSLA', 'F', 'GM', 'TM', 'RIVN', 'NIO', 'LCID',
+  // Financial Services
+  'JPM', 'BAC', 'WFC', 'GS', 'MS', 'V', 'MA', 'AXP',
+  // Healthcare
+  'JNJ', 'PFE', 'MRNA', 'ABBV', 'UNH', 'CVS', 'WBA',
+  // Retail
+  'WMT', 'TGT', 'COST', 'HD', 'LOW', 'DG', 'DLTR',
+  // Entertainment & Media
+  'NFLX', 'DIS', 'CMCSA', 'PARA', 'WBD', 'SPOT',
+  // Telecommunications
+  'VZ', 'T', 'TMUS',
+  // Energy
+  'XOM', 'CVX', 'COP', 'BP', 'SHEL',
+  // Consumer Goods
+  'KO', 'PEP', 'PG', 'MCD', 'SBUX', 'NKE'
 ];
 
+// Keep track of stocks that have been shown to the user
+let shownStocks = new Set<string>();
+
+// Reset shown stocks if we've shown too many
+const resetShownStocksIfNeeded = () => {
+  if (shownStocks.size >= stockUniverse.length - 10) {
+    console.log('Resetting shown stocks history');
+    shownStocks.clear();
+  }
+};
+
 export const generateStockBatch = async (count: number): Promise<Stock[]> => {
-  const selectedStocks = defaultStocks.sort(() => Math.random() - 0.5).slice(0, count);
+  resetShownStocksIfNeeded();
+  
+  // Filter out already shown stocks and randomly select from remaining
+  const availableStocks = stockUniverse.filter(symbol => !shownStocks.has(symbol));
+  const selectedStocks = availableStocks
+    .sort(() => Math.random() - 0.5)
+    .slice(0, count);
+  
+  // Add selected stocks to shown stocks set
+  selectedStocks.forEach(symbol => shownStocks.add(symbol));
+  
+  console.log('Selected stocks:', selectedStocks);
+  console.log('Total shown stocks:', shownStocks.size);
   
   const stockPromises = selectedStocks.map(async (symbol) => {
     try {

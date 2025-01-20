@@ -18,7 +18,11 @@ const Index = () => {
     try {
       setIsLoading(true);
       const newStocks = await generateStockBatch(5);
-      setStocks(newStocks);
+      setStocks(prev => {
+        // Filter out any stocks that might already be in the list
+        const existingSymbols = new Set(prev.map(s => s.symbol));
+        return [...prev, ...newStocks.filter(s => !existingSymbols.has(s.symbol))];
+      });
     } catch (error) {
       toast({
         title: "Error",
@@ -38,7 +42,13 @@ const Index = () => {
     setStocks((prev) => {
       const [current, ...rest] = prev;
       if (direction === "right") {
-        setPortfolio((portfolio) => [...portfolio, current]);
+        setPortfolio((portfolio) => {
+          // Prevent duplicates in portfolio
+          if (!portfolio.find(s => s.symbol === current.symbol)) {
+            return [...portfolio, current];
+          }
+          return portfolio;
+        });
         toast({
           title: "Added to Portfolio",
           description: `${current.symbol} has been added to your portfolio.`,
@@ -50,8 +60,7 @@ const Index = () => {
     // Load more stocks when we're running low
     if (stocks.length <= 2) {
       try {
-        const newStocks = await generateStockBatch(3);
-        setStocks(prev => [...prev, ...newStocks]);
+        await loadStocks();
       } catch (error) {
         toast({
           title: "Error",
