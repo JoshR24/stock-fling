@@ -13,6 +13,7 @@ export interface Stock {
     title: string;
     summary: string;
     date: string;
+    url: string;
   }[];
 }
 
