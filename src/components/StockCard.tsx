@@ -51,9 +51,8 @@ export const StockCard = ({ stock, onSwipe }: StockCardProps) => {
       }}
       exit={{
         x: x.get() < 0 ? -2000 : 2000,
-        y: -200,
-        rotate: x.get() < 0 ? -60 : 60,
-        transition: { duration: 0.5 }
+        opacity: 0,
+        transition: { duration: 1 }
       }}
     >
       <Card className="w-full h-full glass-card overflow-hidden relative">
@@ -86,9 +85,10 @@ export const StockCard = ({ stock, onSwipe }: StockCardProps) => {
                   <Area
                     type="monotone"
                     dataKey="value"
-                    stroke={isPositive ? "rgb(34, 197, 94)" : "rgb(239, 68, 68)"}
-                    fill={isPositive ? "rgb(34, 197, 94)" : "rgb(239, 68, 68)"}
+                    stroke={isPositive ? "#22c55e" : "#ef4444"}
+                    fill={isPositive ? "#22c55e" : "#ef4444"}
                     strokeWidth={2}
+                    fillOpacity={0}
                   />
                 </AreaChart>
               </ResponsiveContainer>
