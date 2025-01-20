@@ -13,23 +13,18 @@ interface StockCardProps {
 export const StockCard = ({ stock, onSwipe }: StockCardProps) => {
   const isPositive = stock.change >= 0;
   const x = useMotionValue(0);
-  const rotate = useTransform(x, [-200, 200], [-10, 10]);
-  const opacity = useTransform(
-    x,
-    [-200, -100, 0, 100, 200],
-    [1, 1, 0, 1, 1]
-  );
-
-  // Create separate transforms for left and right indicators
-  const leftIndicatorOpacity = useTransform(
+  
+  // Create transforms for the red and green overlays
+  const redOverlayOpacity = useTransform(
     x,
     [-200, -100, 0],
-    [1, 0.5, 0]
+    [0.3, 0.15, 0]
   );
-  const rightIndicatorOpacity = useTransform(
+  
+  const greenOverlayOpacity = useTransform(
     x,
     [0, 100, 200],
-    [0, 0.5, 1]
+    [0, 0.15, 0.3]
   );
 
   return (
@@ -38,7 +33,7 @@ export const StockCard = ({ stock, onSwipe }: StockCardProps) => {
       drag
       dragConstraints={{ left: 0, right: 0, top: 0, bottom: 0 }}
       dragElastic={1}
-      style={{ x, rotate }}
+      style={{ x }}
       onDragEnd={(e, { offset, velocity }) => {
         const swipe = Math.abs(velocity.x) * offset.x;
         if (swipe < -10000) {
@@ -48,23 +43,19 @@ export const StockCard = ({ stock, onSwipe }: StockCardProps) => {
         }
       }}
     >
-      {/* Left indicator (Pass) */}
-      <motion.div
-        className="absolute left-4 top-1/2 -translate-y-1/2 bg-red-500/90 text-white px-6 py-2 rounded-lg font-semibold transform -rotate-12 pointer-events-none"
-        style={{ opacity: leftIndicatorOpacity }}
-      >
-        PASS
-      </motion.div>
-
-      {/* Right indicator (Save) */}
-      <motion.div
-        className="absolute right-4 top-1/2 -translate-y-1/2 bg-green-500/90 text-white px-6 py-2 rounded-lg font-semibold transform rotate-12 pointer-events-none"
-        style={{ opacity: rightIndicatorOpacity }}
-      >
-        SAVE
-      </motion.div>
-
-      <Card className="w-full h-full glass-card overflow-hidden">
+      <Card className="w-full h-full glass-card overflow-hidden relative">
+        {/* Red overlay for left swipe */}
+        <motion.div 
+          className="absolute inset-0 bg-red-500 pointer-events-none z-10" 
+          style={{ opacity: redOverlayOpacity }} 
+        />
+        
+        {/* Green overlay for right swipe */}
+        <motion.div 
+          className="absolute inset-0 bg-green-500 pointer-events-none z-10" 
+          style={{ opacity: greenOverlayOpacity }} 
+        />
+        
         <ScrollArea className="h-full">
           <div className="p-6 space-y-4">
             <div className="flex justify-between items-start">
