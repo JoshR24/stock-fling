@@ -6,8 +6,6 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
 import { Skeleton } from "@/components/ui/skeleton";
-import { supabase } from "@/integrations/supabase/client";
-import { useNavigate } from "react-router-dom";
 
 const Index = () => {
   const [stocks, setStocks] = useState<Stock[]>([]);
@@ -15,13 +13,13 @@ const Index = () => {
   const [showPortfolio, setShowPortfolio] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
-  const navigate = useNavigate();
 
   const loadStocks = async () => {
     try {
       setIsLoading(true);
       const newStocks = await generateStockBatch(5);
       setStocks(prev => {
+        // Filter out any stocks that might already be in the list
         const existingSymbols = new Set(prev.map(s => s.symbol));
         return [...prev, ...newStocks.filter(s => !existingSymbols.has(s.symbol))];
       });
@@ -36,103 +34,42 @@ const Index = () => {
     }
   };
 
-  const loadSavedPortfolio = async () => {
-    try {
-      const { data: session } = await supabase.auth.getSession();
-      if (!session.session) {
-        navigate('/auth');
-        return;
-      }
-
-      const { data: portfolioData, error } = await supabase
-        .from('portfolios')
-        .select('symbol')
-        .eq('user_id', session.session.user.id);
-
-      if (error) throw error;
-
-      if (portfolioData) {
-        const savedSymbols = portfolioData.map(item => item.symbol);
-        const portfolioStocks = await Promise.all(
-          savedSymbols.map(async (symbol) => {
-            const stockData = await generateStockBatch(1);
-            return stockData[0];
-          })
-        );
-        setPortfolio(portfolioStocks);
-      }
-    } catch (error) {
-      console.error('Error loading portfolio:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load your portfolio. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
-
   useEffect(() => {
     loadStocks();
-    loadSavedPortfolio();
   }, []);
 
-  const handleSwipe = useCallback(async (direction: "left" | "right", stock?: Stock) => {
-    if (!stock) return;
-
-    try {
+  const handleSwipe = useCallback(async (direction: "left" | "right") => {
+    setStocks((prev) => {
+      const [current, ...rest] = prev;
       if (direction === "right") {
-        const { data: session } = await supabase.auth.getSession();
-        if (!session.session) {
-          navigate('/auth');
-          return;
-        }
-
-        const { error } = await supabase
-          .from('portfolios')
-          .insert([{ 
-            user_id: session.session.user.id,
-            symbol: stock.symbol
-          }]);
-
-        if (error) {
-          toast({
-            title: "Error",
-            description: "Failed to save to portfolio. Please try again.",
-            variant: "destructive",
-          });
-          return;
-        }
-
         setPortfolio((portfolio) => {
-          if (!portfolio.find(s => s.symbol === stock.symbol)) {
-            return [...portfolio, stock];
+          // Prevent duplicates in portfolio
+          if (!portfolio.find(s => s.symbol === current.symbol)) {
+            return [...portfolio, current];
           }
           return portfolio;
         });
-        
         toast({
           title: "Added to Portfolio",
-          description: `${stock.symbol} has been added to your portfolio.`,
+          description: `${current.symbol} has been added to your portfolio.`,
         });
       }
+      return rest;
+    });
 
-      setStocks((prev) => {
-        const [, ...rest] = prev;
-        return rest;
-      });
-
-      if (stocks.length <= 2) {
+    // Load more stocks when we're running low
+    if (stocks.length <= 2) {
+      try {
         await loadStocks();
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Failed to load more stocks. Please try again.",
+          variant: "destructive",
+        });
       }
-    } catch (error) {
-      console.error('Error in handleSwipe:', error);
-      toast({
-        title: "Error",
-        description: "Failed to process the action. Please try again.",
-        variant: "destructive",
-      });
     }
-  }, [stocks.length, toast, navigate]);
+  }, [stocks.length, toast]);
 
   return (
     <div className="min-h-screen bg-background p-4">
@@ -178,7 +115,7 @@ const Index = () => {
                     <StockCard
                       key={stock.id}
                       stock={stock}
-                      onSwipe={(direction) => handleSwipe(direction, stock)}
+                      onSwipe={handleSwipe}
                     />
                   ))}
                 </AnimatePresence>
