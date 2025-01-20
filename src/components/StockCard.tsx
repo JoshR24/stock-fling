@@ -15,7 +15,6 @@ export const StockCard = ({ stock, onSwipe }: StockCardProps) => {
   const x = useMotionValue(0);
   const rotate = useTransform(x, [-200, 200], [-30, 30]);
   
-  // Create transforms for the red and green overlays
   const redOverlayOpacity = useTransform(
     x,
     [-200, -100, 0],
@@ -50,21 +49,19 @@ export const StockCard = ({ stock, onSwipe }: StockCardProps) => {
         scale: 1,
         rotate: 0,
       }}
-      exit={(custom: "left" | "right") => ({
-        x: custom === "left" ? -2000 : 2000,
+      exit={{
+        x: x.get() < 0 ? -2000 : 2000,
         y: -200,
-        rotate: custom === "left" ? -60 : 60,
+        rotate: x.get() < 0 ? -60 : 60,
         transition: { duration: 0.5 }
-      })}
+      }}
     >
       <Card className="w-full h-full glass-card overflow-hidden relative">
-        {/* Red overlay for left swipe */}
         <motion.div 
           className="absolute inset-0 bg-red-500 pointer-events-none z-10" 
           style={{ opacity: redOverlayOpacity }} 
         />
         
-        {/* Green overlay for right swipe */}
         <motion.div 
           className="absolute inset-0 bg-green-500 pointer-events-none z-10" 
           style={{ opacity: greenOverlayOpacity }} 
@@ -89,9 +86,9 @@ export const StockCard = ({ stock, onSwipe }: StockCardProps) => {
                   <Area
                     type="monotone"
                     dataKey="value"
-                    stroke="none"
-                    fillOpacity={0.8}
+                    stroke={isPositive ? "rgb(34, 197, 94)" : "rgb(239, 68, 68)"}
                     fill={isPositive ? "rgb(34, 197, 94)" : "rgb(239, 68, 68)"}
+                    strokeWidth={2}
                   />
                 </AreaChart>
               </ResponsiveContainer>
