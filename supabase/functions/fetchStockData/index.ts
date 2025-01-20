@@ -64,7 +64,6 @@ const fallbackDescriptions: Record<string, string> = {
 };
 
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -81,89 +80,115 @@ serve(async (req) => {
 
     console.log(`Fetching data for symbol: ${symbol}`);
 
-    // Fetch quote from Alpha Vantage first since we need this data
-    const quoteResponse = await fetch(
-      `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${symbol}&apikey=${alphaVantageKey}`
-    );
-    const quoteData = await quoteResponse.json();
-    console.log('Quote data received:', quoteData);
+    // Add delay to respect API rate limits
+    await new Promise(resolve => setTimeout(resolve, 1000));
 
-    // Process quote data with validation and fallback
-    const quote = quoteData['Global Quote'];
-    if (!quote || !quote['05. price']) {
-      console.error(`Invalid or missing quote data for ${symbol}`);
-      throw new Error(`Failed to fetch valid quote data for ${symbol}`);
+    // Fetch quote with retry logic
+    let quoteData;
+    let retryCount = 0;
+    const maxRetries = 3;
+
+    while (retryCount < maxRetries) {
+      try {
+        const quoteResponse = await fetch(
+          `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${symbol}&apikey=${alphaVantageKey}`
+        );
+        
+        if (!quoteResponse.ok) {
+          throw new Error(`Quote API responded with status: ${quoteResponse.status}`);
+        }
+
+        quoteData = await quoteResponse.json();
+        
+        // Check if we got valid data
+        if (quoteData && quoteData['Global Quote'] && quoteData['Global Quote']['05. price']) {
+          break;
+        }
+
+        console.log(`Retry ${retryCount + 1}: Invalid quote data received for ${symbol}`);
+        retryCount++;
+        await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds before retry
+      } catch (error) {
+        console.error(`Attempt ${retryCount + 1} failed:`, error);
+        retryCount++;
+        if (retryCount === maxRetries) throw error;
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
     }
 
-    const price = parseFloat(quote['05. price']) || 0;
+    if (!quoteData || !quoteData['Global Quote'] || !quoteData['Global Quote']['05. price']) {
+      console.error(`Failed to get valid quote data for ${symbol} after ${maxRetries} attempts`);
+      throw new Error(`Could not fetch valid quote data for ${symbol}`);
+    }
+
+    const quote = quoteData['Global Quote'];
+    const price = parseFloat(quote['05. price']) || 100; // Fallback to 100 if parsing fails
     const change = parseFloat(quote['10. change percent']?.replace('%', '')) || 0;
 
-    // Only fetch company overview if we have valid quote data
-    const overviewResponse = await fetch(
-      `https://www.alphavantage.co/query?function=OVERVIEW&symbol=${symbol}&apikey=${alphaVantageKey}`
-    );
-    const overviewData = await overviewResponse.json();
-    console.log('Overview data received:', overviewData);
+    // Generate dummy chart data based on current price
+    const chartData = Array.from({ length: 20 }, (_, i) => ({
+      value: price + (Math.random() - 0.5) * (price * 0.02) // 2% variation
+    }));
 
-    // Fetch intraday data
-    const intradayResponse = await fetch(
-      `https://www.alphavantage.co/query?function=TIME_SERIES_INTRADAY&symbol=${symbol}&interval=5min&apikey=${alphaVantageKey}`
-    );
-    const intradayData = await intradayResponse.json();
-    console.log('Intraday data received:', intradayData);
-
-    // Process intraday data with validation and fallback
-    let chartData = [];
-    const timeSeriesData = intradayData['Time Series (5min)'];
-    if (timeSeriesData && Object.keys(timeSeriesData).length > 0) {
-      chartData = Object.entries(timeSeriesData)
-        .map(([timestamp, values]: [string, any]) => ({
-          value: parseFloat(values['4. close'])
-        }))
-        .filter(item => !isNaN(item.value))
-        .reverse();
-    }
-
-    // If no valid chart data, create dummy data based on current price
-    if (chartData.length === 0) {
-      const basePrice = price || 100; // Use current price or fallback to 100
-      chartData = Array.from({ length: 20 }, (_, i) => ({
-        value: basePrice + (Math.random() - 0.5) * 2
-      }));
-    }
-
-    // Fetch news from Finnhub
-    const currentDate = new Date();
-    const pastDate = new Date();
-    pastDate.setDate(pastDate.getDate() - 7);
-
-    const newsResponse = await fetch(
-      `https://finnhub.io/api/v1/company-news?symbol=${symbol}` +
-      `&from=${pastDate.toISOString().split('T')[0]}` +
-      `&to=${currentDate.toISOString().split('T')[0]}` +
-      `&token=${finnhubKey}`
-    );
-    const newsData = await newsResponse.json();
-    console.log('News data received:', newsData);
-
-    // Process news with validation
-    const news = (Array.isArray(newsData) ? newsData : [])
-      .filter(item => item.url && item.headline && item.summary)
-      .slice(0, 3)
-      .map(item => ({
-        id: item.id?.toString() || Math.random().toString(),
-        title: item.headline,
-        summary: item.summary,
-        date: new Date(item.datetime * 1000).toLocaleDateString(),
-        url: item.url
-      }));
-
-    // Get company description with fallback
-    const description = overviewData?.Description || fallbackDescriptions[symbol] || 
+    // Use fallback description if available, otherwise use generic description
+    const description = fallbackDescriptions[symbol] || 
       `${symbol} is a publicly traded company listed on major stock exchanges.`;
 
     // Get company name with fallback
-    const name = overviewData?.Name || fallbackDescriptions[symbol]?.split('.')[0] || symbol;
+    const name = fallbackDescriptions[symbol]?.split('.')[0] || symbol;
+
+    // Fetch news with retry logic
+    let newsData = [];
+    retryCount = 0;
+
+    while (retryCount < maxRetries) {
+      try {
+        const currentDate = new Date();
+        const pastDate = new Date();
+        pastDate.setDate(pastDate.getDate() - 7);
+
+        const newsResponse = await fetch(
+          `https://finnhub.io/api/v1/company-news?symbol=${symbol}` +
+          `&from=${pastDate.toISOString().split('T')[0]}` +
+          `&to=${currentDate.toISOString().split('T')[0]}` +
+          `&token=${finnhubKey}`
+        );
+
+        if (!newsResponse.ok) {
+          throw new Error(`News API responded with status: ${newsResponse.status}`);
+        }
+
+        const rawNewsData = await newsResponse.json();
+        
+        if (Array.isArray(rawNewsData) && rawNewsData.length > 0) {
+          newsData = rawNewsData
+            .filter(item => item.url && item.headline && item.summary)
+            .slice(0, 3)
+            .map(item => ({
+              id: item.id?.toString() || Math.random().toString(),
+              title: item.headline,
+              summary: item.summary,
+              date: new Date(item.datetime * 1000).toLocaleDateString(),
+              url: item.url
+            }));
+          break;
+        }
+
+        console.log(`Retry ${retryCount + 1}: Invalid news data received for ${symbol}`);
+        retryCount++;
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      } catch (error) {
+        console.error(`News fetch attempt ${retryCount + 1} failed:`, error);
+        retryCount++;
+        if (retryCount === maxRetries) {
+          // Don't throw error for news, just use empty array
+          console.log(`Using empty news array for ${symbol} after ${maxRetries} failed attempts`);
+          newsData = [];
+          break;
+        }
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+    }
 
     const stockData: StockData = {
       symbol,
@@ -172,10 +197,10 @@ serve(async (req) => {
       change,
       chartData,
       description,
-      news
+      news: newsData
     };
 
-    console.log('Processed stock data:', stockData);
+    console.log('Successfully processed stock data:', stockData);
 
     return new Response(JSON.stringify(stockData), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
