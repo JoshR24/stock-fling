@@ -85,10 +85,9 @@ export const StockCard = ({ stock, onSwipe }: StockCardProps) => {
                   <Area
                     type="monotone"
                     dataKey="value"
-                    stroke={isPositive ? "#22c55e" : "#ef4444"}
-                    fill={isPositive ? "#22c55e" : "#ef4444"}
+                    stroke={isPositive ? "rgb(34, 197, 94)" : "rgb(239, 68, 68)"}
+                    fill={isPositive ? "rgb(34, 197, 94)" : "rgb(239, 68, 68)"}
                     strokeWidth={2}
-                    fillOpacity={0}
                   />
                 </AreaChart>
               </ResponsiveContainer>
