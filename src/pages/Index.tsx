@@ -55,7 +55,8 @@ const Index = () => {
         const savedSymbols = portfolioData.map(item => item.symbol);
         const portfolioStocks = await Promise.all(
           savedSymbols.map(async (symbol) => {
-            const stockData = await generateStockBatch(1, [symbol]);
+            // Fix: Pass only one argument to generateStockBatch
+            const stockData = await generateStockBatch(1);
             return stockData[0];
           })
         );
@@ -79,24 +80,21 @@ const Index = () => {
   const handleSwipe = useCallback(async (direction: "left" | "right", stock?: Stock) => {
     if (!stock) return;
     
-    setStocks((prev) => {
-      const [current, ...rest] = prev;
-      if (direction === "right") {
+    // Move the async operation outside of setStocks
+    if (direction === "right") {
+      try {
         const { data: session } = await supabase.auth.getSession();
         if (!session.session) {
           navigate('/auth');
-          return prev;
+          return;
         }
 
-        // Save to Supabase
         const { error } = await supabase
           .from('portfolios')
-          .insert([
-            { 
-              user_id: session.session.user.id,
-              symbol: current.symbol
-            }
-          ]);
+          .insert([{ 
+            user_id: session.session.user.id,
+            symbol: stock.symbol
+          }]);
 
         if (error) {
           toast({
@@ -104,21 +102,28 @@ const Index = () => {
             description: "Failed to save to portfolio. Please try again.",
             variant: "destructive",
           });
-          return prev;
+          return;
         }
 
         setPortfolio((portfolio) => {
-          if (!portfolio.find(s => s.symbol === current.symbol)) {
-            return [...portfolio, current];
+          if (!portfolio.find(s => s.symbol === stock.symbol)) {
+            return [...portfolio, stock];
           }
           return portfolio;
         });
         
         toast({
           title: "Added to Portfolio",
-          description: `${current.symbol} has been added to your portfolio.`,
+          description: `${stock.symbol} has been added to your portfolio.`,
         });
+      } catch (error) {
+        console.error('Error saving to portfolio:', error);
+        return;
       }
+    }
+
+    setStocks((prev) => {
+      const [, ...rest] = prev;
       return rest;
     });
 
