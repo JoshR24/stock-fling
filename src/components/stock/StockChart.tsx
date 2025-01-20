@@ -12,7 +12,7 @@ export const StockChart = ({ stock }: StockChartProps) => {
   if (!stock.chartData || stock.chartData.length === 0) {
     return (
       <div className="h-[200px] flex items-center justify-center text-muted-foreground">
-        No chart data available
+        {stock.error || "No chart data available. This might be due to API rate limits, please try again in a minute."}
       </div>
     );
   }

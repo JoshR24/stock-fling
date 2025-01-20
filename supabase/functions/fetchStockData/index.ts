@@ -12,6 +12,7 @@ interface StockData {
   change: number;
   chartData: { value: number; date: string }[];
   description: string;
+  error?: string;
   news: {
     id: string;
     title: string;
@@ -56,11 +57,22 @@ serve(async (req) => {
     );
 
     if (!chartResponse.ok) {
+      console.error(`Failed to fetch chart data for ${symbol}: ${chartResponse.statusText}`);
       throw new Error(`Failed to fetch chart data for ${symbol}`);
     }
 
     const chartData = await chartResponse.json();
-    console.log('Received chart data from Alpha Vantage:', JSON.stringify(chartData).slice(0, 200));
+    
+    // Check for Alpha Vantage error messages
+    if (chartData.hasOwnProperty('Note')) {
+      console.warn(`Alpha Vantage rate limit hit for ${symbol}: ${chartData.Note}`);
+      throw new Error('API rate limit exceeded. Please try again in a minute.');
+    }
+
+    if (chartData.hasOwnProperty('Error Message')) {
+      console.error(`Alpha Vantage error for ${symbol}: ${chartData['Error Message']}`);
+      throw new Error(chartData['Error Message']);
+    }
 
     // Process historical data - last 30 days
     const timeSeriesData = chartData['Time Series (Daily)'];
@@ -76,6 +88,7 @@ serve(async (req) => {
         .reverse();
     } else {
       console.error('No time series data found in Alpha Vantage response');
+      throw new Error('No historical data available');
     }
 
     // Get company news
@@ -92,7 +105,6 @@ serve(async (req) => {
     }
 
     const newsData = await newsResponse.json();
-    console.log('Received news data from Finnhub');
 
     // Format the response
     const stockData: StockData = {
@@ -123,7 +135,7 @@ serve(async (req) => {
     
     return new Response(
       JSON.stringify({ 
-        error: 'Failed to fetch stock data',
+        error: error.message || 'Failed to fetch stock data',
         details: error.message,
         timestamp: new Date().toISOString()
       }),
