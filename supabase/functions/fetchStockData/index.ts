@@ -30,31 +30,8 @@ const fallbackDescriptions: Record<string, string> = {
   META: "Meta Platforms, Inc. develops products that enable people to connect and share with friends and family through mobile devices, personal computers, virtual reality headsets, and wearables worldwide.",
   TSLA: "Tesla, Inc. designs, develops, manufactures, leases, and sells electric vehicles, and energy generation and storage systems worldwide.",
   NVDA: "NVIDIA Corporation provides graphics, and compute and networking solutions worldwide.",
+  CSCO: "Cisco Systems, Inc. designs, manufactures, and sells Internet Protocol based networking and other communications technology.",
   // Add more fallbacks as needed...
-};
-
-// Function to get company description with fallback
-const getCompanyDescription = (symbol: string, overviewData: any): string => {
-  // First try to get from API response
-  if (overviewData?.Description) {
-    return overviewData.Description;
-  }
-  
-  // Then try fallback descriptions
-  if (fallbackDescriptions[symbol]) {
-    console.log(`Using fallback description for ${symbol}`);
-    return fallbackDescriptions[symbol];
-  }
-  
-  // Generic fallback based on sector/industry if available
-  if (overviewData?.Sector || overviewData?.Industry) {
-    const sector = overviewData.Sector || 'various sectors';
-    const industry = overviewData.Industry || 'various industries';
-    return `${symbol} operates in ${sector}, specifically in ${industry}. The company provides products and services to its customers worldwide.`;
-  }
-  
-  // Final generic fallback
-  return `${symbol} is a publicly traded company listed on major stock exchanges. The company operates in various business segments and serves customers globally.`;
 };
 
 serve(async (req) => {
@@ -75,31 +52,57 @@ serve(async (req) => {
 
     console.log(`Fetching data for symbol: ${symbol}`);
 
-    // Fetch company overview from Alpha Vantage
-    const overviewResponse = await fetch(
-      `https://www.alphavantage.co/query?function=OVERVIEW&symbol=${symbol}&apikey=${alphaVantageKey}`
-    );
-    const overviewData = await overviewResponse.json();
-    console.log('Overview data received:', overviewData);
-
-    // Fetch intraday data from Alpha Vantage
-    const intradayResponse = await fetch(
-      `https://www.alphavantage.co/query?function=TIME_SERIES_INTRADAY&symbol=${symbol}&interval=5min&apikey=${alphaVantageKey}`
-    );
-    const intradayData = await intradayResponse.json();
-    console.log('Intraday data received:', intradayData);
-
-    // Fetch quote from Alpha Vantage
+    // Fetch quote from Alpha Vantage first since we need this data
     const quoteResponse = await fetch(
       `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${symbol}&apikey=${alphaVantageKey}`
     );
     const quoteData = await quoteResponse.json();
     console.log('Quote data received:', quoteData);
 
-    // NEW: Fetch news from Finnhub
+    // Process quote data with validation
+    const quote = quoteData['Global Quote'];
+    if (!quote || !quote['05. price']) {
+      throw new Error(`Invalid quote data received for ${symbol}`);
+    }
+
+    const price = parseFloat(quote['05. price']);
+    const change = parseFloat(quote['10. change percent']?.replace('%', '')) || 0;
+
+    // Only fetch company overview if we have valid quote data
+    const overviewResponse = await fetch(
+      `https://www.alphavantage.co/query?function=OVERVIEW&symbol=${symbol}&apikey=${alphaVantageKey}`
+    );
+    const overviewData = await overviewResponse.json();
+    console.log('Overview data received:', overviewData);
+
+    // Fetch intraday data
+    const intradayResponse = await fetch(
+      `https://www.alphavantage.co/query?function=TIME_SERIES_INTRADAY&symbol=${symbol}&interval=5min&apikey=${alphaVantageKey}`
+    );
+    const intradayData = await intradayResponse.json();
+    console.log('Intraday data received:', intradayData);
+
+    // Process intraday data with validation
+    let chartData = [];
+    const timeSeriesData = intradayData['Time Series (5min)'];
+    if (timeSeriesData && Object.keys(timeSeriesData).length > 0) {
+      chartData = Object.entries(timeSeriesData)
+        .map(([timestamp, values]: [string, any]) => ({
+          value: parseFloat(values['4. close'])
+        }))
+        .filter(item => !isNaN(item.value))
+        .reverse();
+    }
+
+    // If no valid chart data, throw error
+    if (chartData.length === 0) {
+      throw new Error(`No valid chart data received for ${symbol}`);
+    }
+
+    // Fetch news from Finnhub
     const currentDate = new Date();
     const pastDate = new Date();
-    pastDate.setDate(pastDate.getDate() - 7); // Get news from the past week
+    pastDate.setDate(pastDate.getDate() - 7);
 
     const newsResponse = await fetch(
       `https://finnhub.io/api/v1/company-news?symbol=${symbol}` +
@@ -108,56 +111,27 @@ serve(async (req) => {
       `&token=${finnhubKey}`
     );
     const newsData = await newsResponse.json();
-    console.log('Finnhub news data received:', newsData);
+    console.log('News data received:', newsData);
 
-    // Process intraday data with fallback
-    let chartData = [];
-    const timeSeriesData = intradayData['Time Series (5min)'];
-    if (timeSeriesData && Object.keys(timeSeriesData).length > 0) {
-      chartData = Object.entries(timeSeriesData)
-        .map(([timestamp, values]: [string, any]) => ({
-          value: parseFloat(values['4. close']) || 0
-        }))
-        .reverse();
-    } else {
-      chartData = Array(20).fill(0).map((_, i) => ({
-        value: 100 + Math.random() * 10
-      }));
-    }
-
-    // Process quote data with fallback
-    const quote = quoteData['Global Quote'] || {};
-    const price = parseFloat(quote['05. price']) || 0;
-    const change = parseFloat(quote['10. change percent']?.replace('%', '')) || 0;
-
-    // Get company description
-    const description = getCompanyDescription(symbol, overviewData);
-
-    // Process Finnhub news data
-    const news = (newsData || [])
+    // Process news with validation
+    const news = (Array.isArray(newsData) ? newsData : [])
+      .filter(item => item.url && item.headline && item.summary)
       .slice(0, 3)
-      .map((item: any) => ({
+      .map(item => ({
         id: item.id?.toString() || Math.random().toString(),
-        title: item.headline || `Latest Update on ${symbol}`,
-        summary: item.summary || item.description || `Stay tuned for the latest updates about ${symbol}.`,
+        title: item.headline,
+        summary: item.summary,
         date: new Date(item.datetime * 1000).toLocaleDateString(),
-        url: item.url || '' // Add the URL from Finnhub
+        url: item.url
       }));
 
-    // Fallback news if none available
-    if (news.length === 0) {
-      news.push({
-        id: '1',
-        title: `Market Update: ${symbol} Stock Analysis`,
-        summary: `Stay informed about ${symbol}'s market performance and latest developments.`,
-        date: new Date().toLocaleDateString(),
-        url: '' // Add empty URL for fallback
-      });
-    }
+    // Get company description with fallback
+    const description = overviewData?.Description || fallbackDescriptions[symbol] || 
+      `${symbol} is a publicly traded company listed on major stock exchanges.`;
 
     const stockData: StockData = {
       symbol,
-      name: overviewData.Name || symbol,
+      name: overviewData?.Name || symbol,
       price,
       change,
       chartData,

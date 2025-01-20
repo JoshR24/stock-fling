@@ -20,7 +20,11 @@ export const StockNews = ({ stock }: StockNewsProps) => {
               if (!article.url) {
                 e.preventDefault();
                 console.warn('No URL available for this article');
+                return;
               }
+              // Open in new tab manually to ensure it works
+              window.open(article.url, '_blank', 'noopener,noreferrer');
+              e.preventDefault();
             }}
           >
             <h4 className="font-medium mb-1 flex-1">{article.title}</h4>
