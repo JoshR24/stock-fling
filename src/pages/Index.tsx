@@ -59,7 +59,7 @@ const Index = () => {
       const portfolioStocks = await Promise.all(
         portfolioData.map(async (item) => {
           try {
-            const stockData = await generateStockBatch(1, item.symbol);
+            const stockData = await generateStockBatch(1, [item.symbol]);
             return stockData[0];
           } catch (error) {
             console.error(`Error loading stock ${item.symbol}:`, error);
@@ -119,15 +119,7 @@ const Index = () => {
     }
 
     if (stocks.length <= 2) {
-      try {
-        await loadStocks();
-      } catch (error) {
-        toast({
-          title: "Error",
-          description: "Failed to load more stocks. Please try again.",
-          variant: "destructive",
-        });
-      }
+      loadStocks();
     }
   }, [stocks.length, toast, session?.user, supabase]);
 
