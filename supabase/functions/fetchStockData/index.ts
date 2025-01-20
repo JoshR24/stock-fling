@@ -64,42 +64,50 @@ serve(async (req) => {
 
   try {
     const { symbol } = await req.json();
-    const apiKey = Deno.env.get('ALPHAVANTAGE_API_KEY');
+    const alphaVantageKey = Deno.env.get('ALPHAVANTAGE_API_KEY');
+    const finnhubKey = Deno.env.get('FINNHUB_API_KEY');
     
-    if (!apiKey) {
-      console.error('AlphaVantage API key not found');
-      throw new Error('API key not configured');
+    if (!alphaVantageKey || !finnhubKey) {
+      console.error('API keys not found');
+      throw new Error('API keys not configured');
     }
 
     console.log(`Fetching data for symbol: ${symbol}`);
 
-    // Fetch company overview
+    // Fetch company overview from Alpha Vantage
     const overviewResponse = await fetch(
-      `https://www.alphavantage.co/query?function=OVERVIEW&symbol=${symbol}&apikey=${apiKey}`
+      `https://www.alphavantage.co/query?function=OVERVIEW&symbol=${symbol}&apikey=${alphaVantageKey}`
     );
     const overviewData = await overviewResponse.json();
     console.log('Overview data received:', overviewData);
 
-    // Fetch intraday data
+    // Fetch intraday data from Alpha Vantage
     const intradayResponse = await fetch(
-      `https://www.alphavantage.co/query?function=TIME_SERIES_INTRADAY&symbol=${symbol}&interval=5min&apikey=${apiKey}`
+      `https://www.alphavantage.co/query?function=TIME_SERIES_INTRADAY&symbol=${symbol}&interval=5min&apikey=${alphaVantageKey}`
     );
     const intradayData = await intradayResponse.json();
     console.log('Intraday data received:', intradayData);
 
-    // Fetch global quote
+    // Fetch quote from Alpha Vantage
     const quoteResponse = await fetch(
-      `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${symbol}&apikey=${apiKey}`
+      `https://www.alphavantage.co/query?function=GLOBAL_QUOTE&symbol=${symbol}&apikey=${alphaVantageKey}`
     );
     const quoteData = await quoteResponse.json();
     console.log('Quote data received:', quoteData);
 
-    // Fetch news sentiment
+    // NEW: Fetch news from Finnhub
+    const currentDate = new Date();
+    const pastDate = new Date();
+    pastDate.setDate(pastDate.getDate() - 7); // Get news from the past week
+
     const newsResponse = await fetch(
-      `https://www.alphavantage.co/query?function=NEWS_SENTIMENT&symbol=${symbol}&apikey=${apiKey}`
+      `https://finnhub.io/api/v1/company-news?symbol=${symbol}` +
+      `&from=${pastDate.toISOString().split('T')[0]}` +
+      `&to=${currentDate.toISOString().split('T')[0]}` +
+      `&token=${finnhubKey}`
     );
     const newsData = await newsResponse.json();
-    console.log('News data received:', newsData);
+    console.log('Finnhub news data received:', newsData);
 
     // Process intraday data with fallback
     let chartData = [];
@@ -111,38 +119,35 @@ serve(async (req) => {
         }))
         .reverse();
     } else {
-      // Fallback: Create dummy chart data
       chartData = Array(20).fill(0).map((_, i) => ({
         value: 100 + Math.random() * 10
       }));
     }
 
-    // Process quote data with fallback values
+    // Process quote data with fallback
     const quote = quoteData['Global Quote'] || {};
     const price = parseFloat(quote['05. price']) || 0;
     const change = parseFloat(quote['10. change percent']?.replace('%', '')) || 0;
 
-    // Get company description with enhanced fallback
+    // Get company description
     const description = getCompanyDescription(symbol, overviewData);
 
-    // Process news data with fallback
-    const news = (newsData.feed || [])
+    // Process Finnhub news data
+    const news = (newsData || [])
       .slice(0, 3)
-      .map((item: any, index: number) => ({
-        id: index.toString(),
-        title: item.title || `Latest Update on ${symbol}`,
-        summary: item.summary || `Stay tuned for the latest updates and news about ${symbol}.`,
-        date: item.time_published ? 
-          new Date(item.time_published).toLocaleDateString() : 
-          new Date().toLocaleDateString()
+      .map((item: any) => ({
+        id: item.id?.toString() || Math.random().toString(),
+        title: item.headline || `Latest Update on ${symbol}`,
+        summary: item.summary || item.description || `Stay tuned for the latest updates about ${symbol}.`,
+        date: new Date(item.datetime * 1000).toLocaleDateString()
       }));
 
-    // If no news available, provide relevant dummy news
+    // Fallback news if none available
     if (news.length === 0) {
       news.push({
         id: '1',
         title: `Market Update: ${symbol} Stock Analysis`,
-        summary: `Stay informed about ${symbol}'s market performance and latest developments. Our analysis provides insights into the company's current position and future prospects.`,
+        summary: `Stay informed about ${symbol}'s market performance and latest developments.`,
         date: new Date().toLocaleDateString()
       });
     }
