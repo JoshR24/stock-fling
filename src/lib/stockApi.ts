@@ -28,25 +28,47 @@ const STOCK_SYMBOLS = ['AAPL', 'MSFT', 'GOOGL', 'AMZN', 'NVDA'];
 
 export async function fetchStockData(symbol: string): Promise<StockData> {
   try {
-    const { data: { ALPHAVANTAGE_API_KEY }, error: secretError } = await supabase
+    console.log('Fetching API key...');
+    const { data: secretData, error: secretError } = await supabase
       .functions.invoke('get-secret', {
         body: { name: 'ALPHAVANTAGE_API_KEY' }
       });
 
-    if (secretError) throw new Error('Failed to get API key');
+    if (secretError) {
+      console.error('Error fetching API key:', secretError);
+      throw new Error('Failed to get API key');
+    }
 
-    // Fetch daily time series data
+    if (!secretData?.ALPHAVANTAGE_API_KEY) {
+      console.error('API key not found in response');
+      throw new Error('API key not found');
+    }
+
+    console.log('Fetching stock data...');
     const response = await fetch(
-      `https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=${symbol}&apikey=${ALPHAVANTAGE_API_KEY}`
+      `https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=${symbol}&apikey=${secretData.ALPHAVANTAGE_API_KEY}`
     );
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
     const data = await response.json();
+    console.log('API Response:', data);
 
     if (data['Error Message']) {
       throw new Error(data['Error Message']);
     }
 
     const timeSeriesData = data['Time Series (Daily)'];
+    if (!timeSeriesData) {
+      throw new Error('No time series data found in response');
+    }
+
     const dates = Object.keys(timeSeriesData).slice(0, 20).reverse();
+    if (dates.length < 2) {
+      throw new Error('Insufficient data points');
+    }
     
     const chartData = dates.map(date => ({
       time: date,
