@@ -17,6 +17,7 @@ interface StockData {
     title: string;
     summary: string;
     date: string;
+    url: string;
   }[];
 }
 
@@ -139,7 +140,8 @@ serve(async (req) => {
         id: item.id?.toString() || Math.random().toString(),
         title: item.headline || `Latest Update on ${symbol}`,
         summary: item.summary || item.description || `Stay tuned for the latest updates about ${symbol}.`,
-        date: new Date(item.datetime * 1000).toLocaleDateString()
+        date: new Date(item.datetime * 1000).toLocaleDateString(),
+        url: item.url || '' // Add the URL from Finnhub
       }));
 
     // Fallback news if none available
@@ -148,7 +150,8 @@ serve(async (req) => {
         id: '1',
         title: `Market Update: ${symbol} Stock Analysis`,
         summary: `Stay informed about ${symbol}'s market performance and latest developments.`,
-        date: new Date().toLocaleDateString()
+        date: new Date().toLocaleDateString(),
+        url: '' // Add empty URL for fallback
       });
     }
 
