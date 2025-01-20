@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from "react";
-import { StockData, generateStockBatch, getRandomStock } from "@/lib/stockApi";
+import { StockData, generateStockBatch } from "@/lib/stockApi";
 import { StockCard } from "@/components/StockCard";
 import { Portfolio } from "@/components/Portfolio";
 import { Button } from "@/components/ui/button";
@@ -20,7 +20,6 @@ const Index = () => {
         const initialStocks = await generateStockBatch(5);
         setStocks(initialStocks);
       } catch (error) {
-        console.error('Error loading stocks:', error);
         toast({
           title: "Error",
           description: "Failed to load stock data. Please try again later.",
@@ -52,7 +51,6 @@ const Index = () => {
       const newStock = await getRandomStock();
       setStocks(prev => [...prev, newStock]);
     } catch (error) {
-      console.error('Error fetching new stock:', error);
       toast({
         title: "Error",
         description: "Failed to load new stock data. Please try again later.",
