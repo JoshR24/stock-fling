@@ -12,8 +12,21 @@ const Auth = () => {
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log("Auth state changed:", event, session);
       if (event === "SIGNED_IN" && session) {
         navigate("/");
+      }
+      if (event === "SIGNED_UP") {
+        console.log("User signed up successfully");
+      }
+      if (event === "USER_UPDATED") {
+        const { error } = await supabase.auth.getSession();
+        if (error) {
+          setErrorMessage(getErrorMessage(error));
+        }
+      }
+      if (event === "SIGNED_OUT") {
+        setErrorMessage("");
       }
     });
 
@@ -60,6 +73,7 @@ const Auth = () => {
               }
             }}
             providers={[]}
+            redirectTo={window.location.origin}
           />
         </div>
       </div>
