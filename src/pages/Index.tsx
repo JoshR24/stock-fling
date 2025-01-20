@@ -1,18 +1,40 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { Stock, generateStockBatch } from "@/lib/mockStocks";
 import { StockCard } from "@/components/StockCard";
 import { Portfolio } from "@/components/Portfolio";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const Index = () => {
-  const [stocks, setStocks] = useState<Stock[]>(() => generateStockBatch(5));
+  const [stocks, setStocks] = useState<Stock[]>([]);
   const [portfolio, setPortfolio] = useState<Stock[]>([]);
   const [showPortfolio, setShowPortfolio] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
 
-  const handleSwipe = useCallback((direction: "left" | "right") => {
+  const loadStocks = async () => {
+    try {
+      setIsLoading(true);
+      const newStocks = await generateStockBatch(5);
+      setStocks(newStocks);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to load stock data. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadStocks();
+  }, []);
+
+  const handleSwipe = useCallback(async (direction: "left" | "right") => {
     setStocks((prev) => {
       const [current, ...rest] = prev;
       if (direction === "right") {
@@ -22,9 +44,23 @@ const Index = () => {
           description: `${current.symbol} has been added to your portfolio.`,
         });
       }
-      return [...rest, generateStockBatch(1)[0]];
+      return rest;
     });
-  }, [toast]);
+
+    // Load more stocks when we're running low
+    if (stocks.length <= 2) {
+      try {
+        const newStocks = await generateStockBatch(3);
+        setStocks(prev => [...prev, ...newStocks]);
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Failed to load more stocks. Please try again.",
+          variant: "destructive",
+        });
+      }
+    }
+  }, [stocks.length, toast]);
 
   return (
     <div className="min-h-screen bg-background p-4">
@@ -60,15 +96,21 @@ const Index = () => {
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
               className="relative h-[calc(100%-4rem)]"
             >
-              <AnimatePresence>
-                {stocks.slice(0, 1).map((stock) => (
-                  <StockCard
-                    key={stock.id}
-                    stock={stock}
-                    onSwipe={handleSwipe}
-                  />
-                ))}
-              </AnimatePresence>
+              {isLoading ? (
+                <div className="w-full h-full">
+                  <Skeleton className="w-full h-full rounded-lg" />
+                </div>
+              ) : (
+                <AnimatePresence>
+                  {stocks.slice(0, 1).map((stock) => (
+                    <StockCard
+                      key={stock.id}
+                      stock={stock}
+                      onSwipe={handleSwipe}
+                    />
+                  ))}
+                </AnimatePresence>
+              )}
             </motion.div>
           )}
         </AnimatePresence>
