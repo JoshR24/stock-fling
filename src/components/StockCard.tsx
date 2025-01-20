@@ -39,7 +39,7 @@ export const StockCard = ({ stock, onSwipe }: StockCardProps) => {
           </Badge>
         </div>
 
-        <div className="h-[25%] mb-4">
+        <div className="h-[40%] mb-4">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={stock.chartData}>
               <defs>
