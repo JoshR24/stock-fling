@@ -55,7 +55,6 @@ const Index = () => {
         const savedSymbols = portfolioData.map(item => item.symbol);
         const portfolioStocks = await Promise.all(
           savedSymbols.map(async (symbol) => {
-            // Fix: Pass only one argument to generateStockBatch
             const stockData = await generateStockBatch(1);
             return stockData[0];
           })
@@ -79,10 +78,9 @@ const Index = () => {
 
   const handleSwipe = useCallback(async (direction: "left" | "right", stock?: Stock) => {
     if (!stock) return;
-    
-    // Move the async operation outside of setStocks
-    if (direction === "right") {
-      try {
+
+    try {
+      if (direction === "right") {
         const { data: session } = await supabase.auth.getSession();
         if (!session.session) {
           navigate('/auth');
@@ -116,27 +114,23 @@ const Index = () => {
           title: "Added to Portfolio",
           description: `${stock.symbol} has been added to your portfolio.`,
         });
-      } catch (error) {
-        console.error('Error saving to portfolio:', error);
-        return;
       }
-    }
 
-    setStocks((prev) => {
-      const [, ...rest] = prev;
-      return rest;
-    });
+      setStocks((prev) => {
+        const [, ...rest] = prev;
+        return rest;
+      });
 
-    if (stocks.length <= 2) {
-      try {
+      if (stocks.length <= 2) {
         await loadStocks();
-      } catch (error) {
-        toast({
-          title: "Error",
-          description: "Failed to load more stocks. Please try again.",
-          variant: "destructive",
-        });
       }
+    } catch (error) {
+      console.error('Error in handleSwipe:', error);
+      toast({
+        title: "Error",
+        description: "Failed to process the action. Please try again.",
+        variant: "destructive",
+      });
     }
   }, [stocks.length, toast, navigate]);
 
@@ -184,7 +178,7 @@ const Index = () => {
                     <StockCard
                       key={stock.id}
                       stock={stock}
-                      onSwipe={handleSwipe}
+                      onSwipe={(direction) => handleSwipe(direction, stock)}
                     />
                   ))}
                 </AnimatePresence>
