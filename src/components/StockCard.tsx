@@ -4,24 +4,13 @@ import { motion, useMotionValue, useTransform } from "framer-motion";
 import { Badge } from "./ui/badge";
 import { Card } from "./ui/card";
 import { ScrollArea } from "./ui/scroll-area";
-import { 
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "./ui/dropdown-menu";
-import { Button } from "./ui/button";
-import { useState } from "react";
 
 interface StockCardProps {
   stock: Stock;
   onSwipe: (direction: "left" | "right") => void;
 }
 
-type TimeRange = "1D" | "5D" | "1M" | "YTD" | "1Y" | "ALL";
-
 export const StockCard = ({ stock, onSwipe }: StockCardProps) => {
-  const [timeRange, setTimeRange] = useState<TimeRange>("1D");
   const isPositive = stock.change >= 0;
   const x = useMotionValue(0);
   const rotate = useTransform(x, [-200, 200], [-30, 30]);
@@ -37,15 +26,6 @@ export const StockCard = ({ stock, onSwipe }: StockCardProps) => {
     [0, 100, 200],
     [0, 0.15, 0.3]
   );
-
-  const timeRangeLabels: Record<TimeRange, string> = {
-    "1D": "1 Day",
-    "5D": "5 Days",
-    "1M": "1 Month",
-    "YTD": "Year to Date",
-    "1Y": "1 Year",
-    "ALL": "All Time"
-  };
 
   return (
     <motion.div
@@ -96,26 +76,6 @@ export const StockCard = ({ stock, onSwipe }: StockCardProps) => {
               <Badge variant={isPositive ? "default" : "destructive"}>
                 {isPositive ? "+" : ""}{stock.change}%
               </Badge>
-            </div>
-
-            <div className="flex justify-between items-center mb-2">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm">
-                    {timeRangeLabels[timeRange]}
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent>
-                  {Object.entries(timeRangeLabels).map(([value, label]) => (
-                    <DropdownMenuItem
-                      key={value}
-                      onClick={() => setTimeRange(value as TimeRange)}
-                    >
-                      {label}
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuContent>
-              </DropdownMenu>
             </div>
 
             <div className="h-[200px]">
