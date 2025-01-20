@@ -6,8 +6,9 @@ export interface Stock {
   name: string;
   price: number;
   change: number;
-  chartData: { value: number }[];
+  chartData: { value: number; date?: string }[];
   description: string;
+  error?: string;
   news: {
     id: string;
     title: string;

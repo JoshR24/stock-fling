@@ -56,39 +56,39 @@ serve(async (req) => {
       `https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=${symbol}&apikey=${Deno.env.get('ALPHAVANTAGE_API_KEY')}`
     );
 
+    let chartPoints = [];
+    let chartError = null;
+
     if (!chartResponse.ok) {
       console.error(`Failed to fetch chart data for ${symbol}: ${chartResponse.statusText}`);
-      throw new Error(`Failed to fetch chart data for ${symbol}`);
-    }
-
-    const chartData = await chartResponse.json();
-    
-    // Check for Alpha Vantage error messages
-    if (chartData.hasOwnProperty('Note')) {
-      console.warn(`Alpha Vantage rate limit hit for ${symbol}: ${chartData.Note}`);
-      throw new Error('API rate limit exceeded. Please try again in a minute.');
-    }
-
-    if (chartData.hasOwnProperty('Error Message')) {
-      console.error(`Alpha Vantage error for ${symbol}: ${chartData['Error Message']}`);
-      throw new Error(chartData['Error Message']);
-    }
-
-    // Process historical data - last 30 days
-    const timeSeriesData = chartData['Time Series (Daily)'];
-    let chartPoints = [];
-    
-    if (timeSeriesData) {
-      chartPoints = Object.entries(timeSeriesData)
-        .slice(0, 30)
-        .map(([date, values]: [string, any]) => ({
-          date: new Date(date).toLocaleDateString(),
-          value: parseFloat(values['4. close'])
-        }))
-        .reverse();
+      chartError = 'Failed to fetch chart data';
     } else {
-      console.error('No time series data found in Alpha Vantage response');
-      throw new Error('No historical data available');
+      const chartData = await chartResponse.json();
+      
+      // Check for Alpha Vantage error messages
+      if (chartData.hasOwnProperty('Note')) {
+        console.warn(`Alpha Vantage rate limit hit for ${symbol}: ${chartData.Note}`);
+        chartError = 'API rate limit exceeded. Please try again in a minute.';
+      } else if (chartData.hasOwnProperty('Error Message')) {
+        console.error(`Alpha Vantage error for ${symbol}: ${chartData['Error Message']}`);
+        chartError = chartData['Error Message'];
+      } else {
+        // Process historical data - last 30 days
+        const timeSeriesData = chartData['Time Series (Daily)'];
+        
+        if (timeSeriesData) {
+          chartPoints = Object.entries(timeSeriesData)
+            .slice(0, 30)
+            .map(([date, values]: [string, any]) => ({
+              date: new Date(date).toLocaleDateString(),
+              value: parseFloat(values['4. close'])
+            }))
+            .reverse();
+        } else {
+          console.error('No time series data found in Alpha Vantage response');
+          chartError = 'No historical data available';
+        }
+      }
     }
 
     // Get company news
@@ -114,6 +114,7 @@ serve(async (req) => {
       change: ((quoteData.c - quoteData.pc) / quoteData.pc * 100),
       chartData: chartPoints,
       description: profileData.description || `${symbol} is a publicly traded company.`,
+      ...(chartError && { error: chartError }),
       news: newsData
         .slice(0, 5)
         .map((article: any, index: number) => ({
@@ -124,8 +125,6 @@ serve(async (req) => {
           url: article.url
         }))
     };
-
-    console.log(`Successfully processed data for ${symbol}. Chart points: ${chartPoints.length}`);
 
     return new Response(JSON.stringify(stockData), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
