@@ -5,6 +5,21 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+interface StockData {
+  symbol: string;
+  name: string;
+  price: number;
+  change: number;
+  chartData: { value: number }[];
+  description: string;
+  news: {
+    id: string;
+    title: string;
+    summary: string;
+    date: string;
+  }[];
+}
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -73,7 +88,7 @@ serve(async (req) => {
         date: new Date(item.time_published).toLocaleDateString()
       }));
 
-    const stockData = {
+    const stockData: StockData = {
       symbol,
       name: overviewData.Name || symbol,
       price,
