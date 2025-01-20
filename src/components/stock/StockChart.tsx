@@ -8,6 +8,15 @@ interface StockChartProps {
 export const StockChart = ({ stock }: StockChartProps) => {
   const isPositive = stock.change >= 0;
   
+  // Add error handling for empty chart data
+  if (!stock.chartData || stock.chartData.length === 0) {
+    return (
+      <div className="h-[200px] flex items-center justify-center text-muted-foreground">
+        No chart data available
+      </div>
+    );
+  }
+  
   return (
     <div className="h-[200px]">
       <ResponsiveContainer width="100%" height="100%">
@@ -35,12 +44,13 @@ export const StockChart = ({ stock }: StockChartProps) => {
             content={({ active, payload }) => {
               if (active && payload && payload.length) {
                 const value = payload[0].value;
+                const date = payload[0].payload.date;
                 return (
                   <div className="rounded-lg border bg-background p-2 shadow-sm">
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid gap-2">
                       <div className="flex flex-col">
                         <span className="text-[0.70rem] uppercase text-muted-foreground">
-                          Price
+                          {date}
                         </span>
                         <span className="font-bold text-muted-foreground">
                           ${typeof value === 'number' ? value.toFixed(2) : value}

@@ -10,7 +10,7 @@ interface StockData {
   name: string;
   price: number;
   change: number;
-  chartData: { value: number }[];
+  chartData: { value: number; date: string }[];
   description: string;
   news: {
     id: string;
@@ -60,17 +60,23 @@ serve(async (req) => {
     }
 
     const chartData = await chartResponse.json();
-    console.log('Received chart data from Alpha Vantage');
+    console.log('Received chart data from Alpha Vantage:', JSON.stringify(chartData).slice(0, 200));
 
     // Process historical data - last 30 days
     const timeSeriesData = chartData['Time Series (Daily)'];
-    const chartPoints = timeSeriesData ? 
-      Object.entries(timeSeriesData)
+    let chartPoints = [];
+    
+    if (timeSeriesData) {
+      chartPoints = Object.entries(timeSeriesData)
         .slice(0, 30)
         .map(([date, values]: [string, any]) => ({
+          date: new Date(date).toLocaleDateString(),
           value: parseFloat(values['4. close'])
         }))
-        .reverse() : [];
+        .reverse();
+    } else {
+      console.error('No time series data found in Alpha Vantage response');
+    }
 
     // Get company news
     const currentDate = new Date();
@@ -107,7 +113,7 @@ serve(async (req) => {
         }))
     };
 
-    console.log(`Successfully processed data for ${symbol}`);
+    console.log(`Successfully processed data for ${symbol}. Chart points: ${chartPoints.length}`);
 
     return new Response(JSON.stringify(stockData), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
