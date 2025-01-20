@@ -78,9 +78,15 @@ export const generateStockBatch = async (count: number): Promise<Stock[]> => {
         throw error;
       }
 
+      // Ensure the chart data is properly formatted
+      const formattedChartData = data.chartData.map((point: any) => ({
+        value: parseFloat(point.value)
+      }));
+
       return {
         id: symbol,
-        ...data
+        ...data,
+        chartData: formattedChartData
       };
     } catch (error) {
       console.error(`Failed to fetch data for ${symbol}:`, error);
