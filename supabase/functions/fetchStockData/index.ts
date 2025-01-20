@@ -21,13 +21,6 @@ interface StockData {
   }[];
 }
 
-const companyDescriptions: Record<string, string> = {
-  AAPL: "Apple Inc. designs, manufactures, and markets smartphones, personal computers, tablets, wearables, and accessories worldwide.",
-  GOOGL: "Alphabet Inc. provides various products and platforms in the United States, Europe, the Middle East, Africa, and Asia Pacific.",
-  MSFT: "Microsoft Corporation develops, licenses, and supports software, services, devices, and solutions worldwide.",
-  // Add more company descriptions as needed
-};
-
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -43,52 +36,92 @@ serve(async (req) => {
 
     console.log(`Processing request for symbol: ${symbol}`);
 
-    // Generate realistic mock data
-    const mockPrice = 100 + Math.random() * 900;
-    const mockChange = (Math.random() * 10) - 5;
+    // Fetch real-time quote data from Finnhub
+    const quoteResponse = await fetch(
+      `https://finnhub.io/api/v1/quote?symbol=${symbol}&token=${Deno.env.get('FINNHUB_API_KEY')}`
+    );
     
-    // Generate chart data with a trend
-    const trendDirection = Math.random() > 0.5 ? 1 : -1;
-    const chartData = Array.from({ length: 20 }, (_, i) => {
-      const trend = (i / 20) * trendDirection * (mockPrice * 0.1);
-      return {
-        value: mockPrice + trend + (Math.random() - 0.5) * (mockPrice * 0.02)
-      };
-    });
+    if (!quoteResponse.ok) {
+      throw new Error(`Failed to fetch quote data for ${symbol}`);
+    }
 
-    // Get company description or use a generic one
-    const description = companyDescriptions[symbol] || 
-      `${symbol} is a publicly traded company operating in various sectors of the market.`;
+    const quoteData = await quoteResponse.json();
+    console.log('Quote data:', quoteData);
 
-    // Generate mock news with actual URLs
-    const mockNews = [
-      {
-        id: '1',
-        title: `Latest Market Analysis: ${symbol} Shows Strong Performance`,
-        summary: `Recent market movements and expert analysis indicate positive trends for ${symbol}.`,
-        date: new Date().toLocaleDateString(),
-        url: `https://finance.yahoo.com/quote/${symbol}`
-      },
-      {
-        id: '2',
-        title: `${symbol} Announces Strategic Initiatives`,
-        summary: `Industry experts weigh in on ${symbol}'s latest developments and market position.`,
-        date: new Date(Date.now() - 86400000).toLocaleDateString(),
-        url: `https://finance.yahoo.com/quote/${symbol}/news`
-      }
-    ];
+    if (!quoteData.c) {
+      throw new Error(`Invalid quote data received for ${symbol}`);
+    }
 
+    // Fetch company profile from Finnhub
+    const profileResponse = await fetch(
+      `https://finnhub.io/api/v1/stock/profile2?symbol=${symbol}&token=${Deno.env.get('FINNHUB_API_KEY')}`
+    );
+    
+    if (!profileResponse.ok) {
+      throw new Error(`Failed to fetch profile data for ${symbol}`);
+    }
+
+    const profileData = await profileResponse.json();
+    console.log('Profile data:', profileData);
+
+    // Fetch historical data from Alpha Vantage for the chart
+    const chartResponse = await fetch(
+      `https://www.alphavantage.co/query?function=TIME_SERIES_INTRADAY&symbol=${symbol}&interval=5min&apikey=${Deno.env.get('ALPHAVANTAGE_API_KEY')}`
+    );
+
+    if (!chartResponse.ok) {
+      throw new Error(`Failed to fetch chart data for ${symbol}`);
+    }
+
+    const chartData = await chartResponse.json();
+    console.log('Chart data received');
+
+    // Process chart data
+    const timeSeriesData = chartData['Time Series (5min)'];
+    const chartPoints = timeSeriesData ? 
+      Object.entries(timeSeriesData)
+        .slice(0, 20)
+        .map(([_, values]: [string, any]) => ({
+          value: parseFloat(values['4. close'])
+        }))
+        .reverse() : [];
+
+    // Fetch company news from Finnhub
+    const currentDate = new Date();
+    const pastDate = new Date();
+    pastDate.setDate(pastDate.getDate() - 7);
+
+    const newsResponse = await fetch(
+      `https://finnhub.io/api/v1/company-news?symbol=${symbol}&from=${pastDate.toISOString().split('T')[0]}&to=${currentDate.toISOString().split('T')[0]}&token=${Deno.env.get('FINNHUB_API_KEY')}`
+    );
+
+    if (!newsResponse.ok) {
+      throw new Error(`Failed to fetch news data for ${symbol}`);
+    }
+
+    const newsData = await newsResponse.json();
+    console.log('News data received');
+
+    // Process and format the data
     const stockData: StockData = {
       symbol,
-      name: `${symbol} Corporation`,
-      price: parseFloat(mockPrice.toFixed(2)),
-      change: parseFloat(mockChange.toFixed(2)),
-      chartData,
-      description,
-      news: mockNews
+      name: profileData.name || `${symbol} Stock`,
+      price: quoteData.c,
+      change: ((quoteData.c - quoteData.pc) / quoteData.pc * 100),
+      chartData: chartPoints,
+      description: profileData.description || `${symbol} is a publicly traded company.`,
+      news: newsData
+        .slice(0, 5)
+        .map((article: any, index: number) => ({
+          id: `${index + 1}`,
+          title: article.headline,
+          summary: article.summary,
+          date: new Date(article.datetime * 1000).toLocaleDateString(),
+          url: article.url
+        }))
     };
 
-    console.log('Successfully generated mock data:', stockData);
+    console.log('Successfully processed data for:', symbol);
 
     return new Response(JSON.stringify(stockData), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
