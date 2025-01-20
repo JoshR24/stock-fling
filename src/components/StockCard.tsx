@@ -13,6 +13,7 @@ interface StockCardProps {
 export const StockCard = ({ stock, onSwipe }: StockCardProps) => {
   const isPositive = stock.change >= 0;
   const x = useMotionValue(0);
+  const rotate = useTransform(x, [-200, 200], [-30, 30]);
   
   // Create transforms for the red and green overlays
   const redOverlayOpacity = useTransform(
@@ -33,7 +34,7 @@ export const StockCard = ({ stock, onSwipe }: StockCardProps) => {
       drag
       dragConstraints={{ left: 0, right: 0, top: 0, bottom: 0 }}
       dragElastic={1}
-      style={{ x }}
+      style={{ x, rotate }}
       onDragEnd={(e, { offset, velocity }) => {
         const swipe = Math.abs(velocity.x) * offset.x;
         if (swipe < -10000) {
@@ -42,6 +43,19 @@ export const StockCard = ({ stock, onSwipe }: StockCardProps) => {
           onSwipe("right");
         }
       }}
+      whileDrag={{ scale: 1.05 }}
+      animate={{
+        x: 0,
+        y: 0,
+        scale: 1,
+        rotate: 0,
+      }}
+      exit={(custom) => ({
+        x: custom === "left" ? -2000 : 2000,
+        y: -200,
+        rotate: custom === "left" ? -60 : 60,
+        transition: { duration: 0.5 }
+      })}
     >
       <Card className="w-full h-full glass-card overflow-hidden relative">
         {/* Red overlay for left swipe */}
@@ -89,7 +103,7 @@ export const StockCard = ({ stock, onSwipe }: StockCardProps) => {
                   <Area
                     type="monotone"
                     dataKey="value"
-                    stroke={isPositive ? "rgb(34, 197, 94)" : "rgb(239, 68, 68)"}
+                    stroke="none"
                     fillOpacity={1}
                     fill="url(#colorValue)"
                   />
