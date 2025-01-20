@@ -1,18 +1,39 @@
-import { useState, useCallback } from "react";
-import { Stock, generateStockBatch } from "@/lib/mockStocks";
+import { useState, useCallback, useEffect } from "react";
+import { StockData, generateStockBatch } from "@/lib/stockApi";
 import { StockCard } from "@/components/StockCard";
 import { Portfolio } from "@/components/Portfolio";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
+import { Loader2 } from "lucide-react";
 
 const Index = () => {
-  const [stocks, setStocks] = useState<Stock[]>(() => generateStockBatch(5));
-  const [portfolio, setPortfolio] = useState<Stock[]>([]);
+  const [stocks, setStocks] = useState<StockData[]>([]);
+  const [portfolio, setPortfolio] = useState<StockData[]>([]);
   const [showPortfolio, setShowPortfolio] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
 
-  const handleSwipe = useCallback((direction: "left" | "right") => {
+  useEffect(() => {
+    const loadInitialStocks = async () => {
+      try {
+        const initialStocks = await generateStockBatch(5);
+        setStocks(initialStocks);
+      } catch (error) {
+        toast({
+          title: "Error",
+          description: "Failed to load stock data. Please try again later.",
+          variant: "destructive",
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadInitialStocks();
+  }, [toast]);
+
+  const handleSwipe = useCallback(async (direction: "left" | "right") => {
     setStocks((prev) => {
       const [current, ...rest] = prev;
       if (direction === "right") {
@@ -22,9 +43,29 @@ const Index = () => {
           description: `${current.symbol} has been added to your portfolio.`,
         });
       }
-      return [...rest, generateStockBatch(1)[0]];
+      return rest;
     });
+
+    // Fetch a new stock to replace the one that was swiped
+    try {
+      const newStock = await getRandomStock();
+      setStocks(prev => [...prev, newStock]);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to load new stock data. Please try again later.",
+        variant: "destructive",
+      });
+    }
   }, [toast]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background p-4">
