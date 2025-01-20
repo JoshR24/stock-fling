@@ -50,7 +50,7 @@ export const StockCard = ({ stock, onSwipe }: StockCardProps) => {
         scale: 1,
         rotate: 0,
       }}
-      exit={(custom) => ({
+      exit={(custom: "left" | "right") => ({
         x: custom === "left" ? -2000 : 2000,
         y: -200,
         rotate: custom === "left" ? -60 : 60,
@@ -85,27 +85,13 @@ export const StockCard = ({ stock, onSwipe }: StockCardProps) => {
             <div className="h-[200px]">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={stock.chartData}>
-                  <defs>
-                    <linearGradient id="colorValue" x1="0" y1="0" x2="0" y2="1">
-                      <stop
-                        offset="5%"
-                        stopColor={isPositive ? "rgb(34, 197, 94)" : "rgb(239, 68, 68)"}
-                        stopOpacity={0.3}
-                      />
-                      <stop
-                        offset="95%"
-                        stopColor={isPositive ? "rgb(34, 197, 94)" : "rgb(239, 68, 68)"}
-                        stopOpacity={0}
-                      />
-                    </linearGradient>
-                  </defs>
                   <YAxis domain={['dataMin', 'dataMax']} hide />
                   <Area
                     type="monotone"
                     dataKey="value"
                     stroke="none"
-                    fillOpacity={1}
-                    fill="url(#colorValue)"
+                    fillOpacity={0.8}
+                    fill={isPositive ? "rgb(34, 197, 94)" : "rgb(239, 68, 68)"}
                   />
                 </AreaChart>
               </ResponsiveContainer>
