@@ -2,17 +2,24 @@ import { useState, useCallback, useEffect } from "react";
 import { Stock, generateStockBatch } from "@/lib/mockStocks";
 import { StockCard } from "@/components/StockCard";
 import { Portfolio } from "@/components/Portfolio";
-import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
 import { Skeleton } from "@/components/ui/skeleton";
 
-const Index = () => {
+interface IndexProps {
+  showPortfolio?: boolean;
+}
+
+const Index = ({ showPortfolio: initialShowPortfolio = false }: IndexProps) => {
   const [stocks, setStocks] = useState<Stock[]>([]);
   const [portfolio, setPortfolio] = useState<Stock[]>([]);
-  const [showPortfolio, setShowPortfolio] = useState(false);
+  const [showPortfolio, setShowPortfolio] = useState(initialShowPortfolio);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
+
+  useEffect(() => {
+    setShowPortfolio(initialShowPortfolio);
+  }, [initialShowPortfolio]);
 
   const loadStocks = async () => {
     try {
@@ -72,17 +79,11 @@ const Index = () => {
   }, [stocks.length, toast]);
 
   return (
-    <div className="min-h-screen bg-background p-4">
-      <div className="max-w-md mx-auto h-[calc(100vh-2rem)]">
-        <div className="flex justify-between items-center mb-4">
-          <h1 className="text-2xl font-bold">Stockr</h1>
-          <Button
-            variant="ghost"
-            onClick={() => setShowPortfolio(!showPortfolio)}
-          >
-            {showPortfolio ? "Back to Swiping" : "View Portfolio"}
-          </Button>
-        </div>
+    <div className="min-h-screen bg-background p-4 pb-16">
+      <div className="max-w-md mx-auto h-[calc(100vh-8rem)]">
+        <h1 className="text-2xl font-bold mb-4">
+          {showPortfolio ? "Portfolio" : "Stockr"}
+        </h1>
 
         <AnimatePresence mode="wait">
           {showPortfolio ? (
