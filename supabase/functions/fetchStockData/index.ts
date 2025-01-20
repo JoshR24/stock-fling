@@ -22,7 +22,6 @@ interface StockData {
 }
 
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -36,37 +35,24 @@ serve(async (req) => {
 
     console.log(`Processing request for symbol: ${symbol}`);
 
-    // Fetch real-time quote data from Finnhub
-    const quoteResponse = await fetch(
-      `https://finnhub.io/api/v1/quote?symbol=${symbol}&token=${Deno.env.get('FINNHUB_API_KEY')}`
-    );
-    
-    if (!quoteResponse.ok) {
-      throw new Error(`Failed to fetch quote data for ${symbol}`);
+    // Get real-time quote and company profile from Finnhub
+    const [quoteResponse, profileResponse] = await Promise.all([
+      fetch(`https://finnhub.io/api/v1/quote?symbol=${symbol}&token=${Deno.env.get('FINNHUB_API_KEY')}`),
+      fetch(`https://finnhub.io/api/v1/stock/profile2?symbol=${symbol}&token=${Deno.env.get('FINNHUB_API_KEY')}`)
+    ]);
+
+    if (!quoteResponse.ok || !profileResponse.ok) {
+      throw new Error(`Failed to fetch data for ${symbol}`);
     }
 
-    const quoteData = await quoteResponse.json();
-    console.log('Quote data:', quoteData);
+    const [quoteData, profileData] = await Promise.all([
+      quoteResponse.json(),
+      profileResponse.json()
+    ]);
 
-    if (!quoteData.c) {
-      throw new Error(`Invalid quote data received for ${symbol}`);
-    }
-
-    // Fetch company profile from Finnhub
-    const profileResponse = await fetch(
-      `https://finnhub.io/api/v1/stock/profile2?symbol=${symbol}&token=${Deno.env.get('FINNHUB_API_KEY')}`
-    );
-    
-    if (!profileResponse.ok) {
-      throw new Error(`Failed to fetch profile data for ${symbol}`);
-    }
-
-    const profileData = await profileResponse.json();
-    console.log('Profile data:', profileData);
-
-    // Fetch historical data from Alpha Vantage for the chart
+    // Get 1 month of daily historical data from Alpha Vantage
     const chartResponse = await fetch(
-      `https://www.alphavantage.co/query?function=TIME_SERIES_INTRADAY&symbol=${symbol}&interval=5min&apikey=${Deno.env.get('ALPHAVANTAGE_API_KEY')}`
+      `https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=${symbol}&apikey=${Deno.env.get('ALPHAVANTAGE_API_KEY')}`
     );
 
     if (!chartResponse.ok) {
@@ -74,19 +60,19 @@ serve(async (req) => {
     }
 
     const chartData = await chartResponse.json();
-    console.log('Chart data received');
+    console.log('Received chart data from Alpha Vantage');
 
-    // Process chart data
-    const timeSeriesData = chartData['Time Series (5min)'];
+    // Process historical data - last 30 days
+    const timeSeriesData = chartData['Time Series (Daily)'];
     const chartPoints = timeSeriesData ? 
       Object.entries(timeSeriesData)
-        .slice(0, 20)
-        .map(([_, values]: [string, any]) => ({
+        .slice(0, 30)
+        .map(([date, values]: [string, any]) => ({
           value: parseFloat(values['4. close'])
         }))
         .reverse() : [];
 
-    // Fetch company news from Finnhub
+    // Get company news
     const currentDate = new Date();
     const pastDate = new Date();
     pastDate.setDate(pastDate.getDate() - 7);
@@ -100,12 +86,12 @@ serve(async (req) => {
     }
 
     const newsData = await newsResponse.json();
-    console.log('News data received');
+    console.log('Received news data from Finnhub');
 
-    // Process and format the data
+    // Format the response
     const stockData: StockData = {
       symbol,
-      name: profileData.name || `${symbol} Stock`,
+      name: profileData.name || symbol,
       price: quoteData.c,
       change: ((quoteData.c - quoteData.pc) / quoteData.pc * 100),
       chartData: chartPoints,
@@ -121,7 +107,7 @@ serve(async (req) => {
         }))
     };
 
-    console.log('Successfully processed data for:', symbol);
+    console.log(`Successfully processed data for ${symbol}`);
 
     return new Response(JSON.stringify(stockData), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

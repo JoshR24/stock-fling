@@ -1,6 +1,5 @@
 import { Stock } from "@/lib/mockStocks";
 import { Area, AreaChart, ResponsiveContainer, Tooltip, YAxis } from "recharts";
-import { ChartTooltip, ChartTooltipContent } from "../ui/chart";
 
 interface StockChartProps {
   stock: Stock;
@@ -35,6 +34,7 @@ export const StockChart = ({ stock }: StockChartProps) => {
           <Tooltip
             content={({ active, payload }) => {
               if (active && payload && payload.length) {
+                const value = payload[0].value;
                 return (
                   <div className="rounded-lg border bg-background p-2 shadow-sm">
                     <div className="grid grid-cols-2 gap-2">
@@ -43,7 +43,7 @@ export const StockChart = ({ stock }: StockChartProps) => {
                           Price
                         </span>
                         <span className="font-bold text-muted-foreground">
-                          ${payload[0].value?.toFixed(2)}
+                          ${typeof value === 'number' ? value.toFixed(2) : value}
                         </span>
                       </div>
                     </div>
