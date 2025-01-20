@@ -3,7 +3,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+}
 
 interface StockData {
   symbol: string;
@@ -21,6 +21,13 @@ interface StockData {
   }[];
 }
 
+const companyDescriptions: Record<string, string> = {
+  AAPL: "Apple Inc. designs, manufactures, and markets smartphones, personal computers, tablets, wearables, and accessories worldwide.",
+  GOOGL: "Alphabet Inc. provides various products and platforms in the United States, Europe, the Middle East, Africa, and Asia Pacific.",
+  MSFT: "Microsoft Corporation develops, licenses, and supports software, services, devices, and solutions worldwide.",
+  // Add more company descriptions as needed
+};
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -36,29 +43,37 @@ serve(async (req) => {
 
     console.log(`Processing request for symbol: ${symbol}`);
 
-    // Generate mock data since we're having API issues
+    // Generate realistic mock data
     const mockPrice = 100 + Math.random() * 900;
     const mockChange = (Math.random() * 10) - 5;
     
-    // Generate realistic-looking chart data
-    const chartData = Array.from({ length: 20 }, (_, i) => ({
-      value: mockPrice + (Math.random() - 0.5) * (mockPrice * 0.02)
-    }));
+    // Generate chart data with a trend
+    const trendDirection = Math.random() > 0.5 ? 1 : -1;
+    const chartData = Array.from({ length: 20 }, (_, i) => {
+      const trend = (i / 20) * trendDirection * (mockPrice * 0.1);
+      return {
+        value: mockPrice + trend + (Math.random() - 0.5) * (mockPrice * 0.02)
+      };
+    });
 
-    // Mock news data
+    // Get company description or use a generic one
+    const description = companyDescriptions[symbol] || 
+      `${symbol} is a publicly traded company operating in various sectors of the market.`;
+
+    // Generate mock news with actual URLs
     const mockNews = [
       {
         id: '1',
-        title: `Latest updates on ${symbol}`,
-        summary: `Recent market movements and analysis for ${symbol}`,
+        title: `Latest Market Analysis: ${symbol} Shows Strong Performance`,
+        summary: `Recent market movements and expert analysis indicate positive trends for ${symbol}.`,
         date: new Date().toLocaleDateString(),
         url: `https://finance.yahoo.com/quote/${symbol}`
       },
       {
         id: '2',
-        title: `${symbol} Market Analysis`,
-        summary: `Industry experts weigh in on ${symbol}'s performance`,
-        date: new Date().toLocaleDateString(),
+        title: `${symbol} Announces Strategic Initiatives`,
+        summary: `Industry experts weigh in on ${symbol}'s latest developments and market position.`,
+        date: new Date(Date.now() - 86400000).toLocaleDateString(),
         url: `https://finance.yahoo.com/quote/${symbol}/news`
       }
     ];
@@ -69,7 +84,7 @@ serve(async (req) => {
       price: parseFloat(mockPrice.toFixed(2)),
       change: parseFloat(mockChange.toFixed(2)),
       chartData,
-      description: `${symbol} is a publicly traded company listed on major stock exchanges.`,
+      description,
       news: mockNews
     };
 
