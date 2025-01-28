@@ -171,7 +171,7 @@ const Explore = () => {
     <div className="min-h-screen bg-background p-4 pb-16">
       <div className="max-w-md mx-auto">
         <div className="flex items-center gap-2 mb-4">
-          {stock && (
+          {(stock || aiRecommendations.length > 0) && (
             <Button
               variant="ghost"
               size="icon"
@@ -185,94 +185,96 @@ const Explore = () => {
         </div>
         
         <div className="space-y-4">
-          <div className="relative">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-              <Input
-                type="text"
-                placeholder="Search stocks or companies..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-            
-            {suggestions.length > 0 && (
-              <Card className="absolute w-full mt-1 z-50">
-                <ScrollArea className="max-h-[200px]">
-                  {suggestions.map((company) => (
-                    <button
-                      key={company.symbol}
-                      className="w-full px-4 py-2 text-left hover:bg-accent transition-colors flex items-center justify-between"
-                      onClick={() => {
-                        loadStockData(company.symbol);
-                      }}
-                    >
-                      <div>
-                        <div className="font-medium">{company.symbol}</div>
-                        <div className="text-sm text-muted-foreground">{company.name}</div>
-                      </div>
-                      <span className={`text-sm ${company.change >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                        {company.change >= 0 ? '+' : ''}{company.change.toFixed(1)}%
-                      </span>
-                    </button>
-                  ))}
-                </ScrollArea>
-              </Card>
-            )}
-          </div>
-
           {!stock && (
-            <Card className="p-4">
-              <div className="space-y-4">
-                <h3 className="font-semibold text-lg">AI Portfolio Recommendations</h3>
-                <div className="space-y-2">
-                  <Textarea
-                    placeholder="Describe your investment idea or market sentiment (e.g., 'I think renewable energy will grow significantly')"
-                    value={aiPrompt}
-                    onChange={(e) => setAiPrompt(e.target.value)}
-                    className="min-h-[100px]"
+            <>
+              <div className="relative">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                  <Input
+                    type="text"
+                    placeholder="Search stocks or companies..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10"
                   />
-                  <Button 
-                    onClick={getAIRecommendations}
-                    disabled={isLoadingAI}
-                    className="w-full"
-                  >
-                    <Sparkles className="mr-2 h-4 w-4" />
-                    {isLoadingAI ? "Analyzing..." : "Get AI Recommendations"}
-                  </Button>
                 </div>
-
-                {aiRecommendations.length > 0 && (
-                  <div className="space-y-3 mt-4">
-                    <h4 className="font-medium">Recommended Stocks:</h4>
-                    {aiRecommendations.map((rec, index) => (
-                      <Card key={index} className="p-3">
-                        <div className="flex justify-between items-start">
+                
+                {suggestions.length > 0 && (
+                  <Card className="absolute w-full mt-1 z-50">
+                    <ScrollArea className="max-h-[200px]">
+                      {suggestions.map((company) => (
+                        <button
+                          key={company.symbol}
+                          className="w-full px-4 py-2 text-left hover:bg-accent transition-colors flex items-center justify-between"
+                          onClick={() => {
+                            loadStockData(company.symbol);
+                          }}
+                        >
                           <div>
-                            <h5 className="font-medium">{rec.symbol}</h5>
-                            <p className="text-sm text-muted-foreground">{rec.name}</p>
+                            <div className="font-medium">{company.symbol}</div>
+                            <div className="text-sm text-muted-foreground">{company.name}</div>
                           </div>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => loadStockData(rec.symbol)}
-                          >
-                            View
-                          </Button>
-                        </div>
-                        <p className="text-sm mt-2">{rec.reason}</p>
-                      </Card>
-                    ))}
-                  </div>
+                          <span className={`text-sm ${company.change >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                            {company.change >= 0 ? '+' : ''}{company.change.toFixed(1)}%
+                          </span>
+                        </button>
+                      ))}
+                    </ScrollArea>
+                  </Card>
                 )}
               </div>
-            </Card>
+
+              <Card className="p-4">
+                <div className="space-y-4">
+                  <h3 className="font-semibold text-lg">AI Portfolio Recommendations</h3>
+                  <div className="space-y-2">
+                    <Textarea
+                      placeholder="Describe your investment idea or market sentiment (e.g., 'I think renewable energy will grow significantly')"
+                      value={aiPrompt}
+                      onChange={(e) => setAiPrompt(e.target.value)}
+                      className="min-h-[100px]"
+                    />
+                    <Button 
+                      onClick={getAIRecommendations}
+                      disabled={isLoadingAI}
+                      className="w-full"
+                    >
+                      <Sparkles className="mr-2 h-4 w-4" />
+                      {isLoadingAI ? "Analyzing..." : "Get AI Recommendations"}
+                    </Button>
+                  </div>
+
+                  {aiRecommendations.length > 0 && (
+                    <div className="space-y-3 mt-4">
+                      <h4 className="font-medium">Recommended Stocks:</h4>
+                      {aiRecommendations.map((rec, index) => (
+                        <Card key={index} className="p-3">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <h5 className="font-medium">{rec.symbol}</h5>
+                              <p className="text-sm text-muted-foreground">{rec.name}</p>
+                            </div>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => loadStockData(rec.symbol)}
+                            >
+                              View
+                            </Button>
+                          </div>
+                          <p className="text-sm mt-2">{rec.reason}</p>
+                        </Card>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </Card>
+            </>
           )}
 
-          <ScrollArea className="h-[calc(100vh-24rem)]">
-            {stock ? (
-              <div className="relative">
+          {stock && (
+            <div className="fixed inset-0 bg-background p-4 overflow-auto">
+              <div className="max-w-md mx-auto relative min-h-full pb-16">
                 <Button
                   variant="outline"
                   size="sm"
@@ -292,21 +294,23 @@ const Explore = () => {
                   <StockNews stock={stock} />
                 </Card>
               </div>
-            ) : (
-              !aiRecommendations.length && (
-                <Card className="p-4">
-                  <h3 className="font-semibold text-lg mb-4">Recent Market News</h3>
-                  {recentNews ? (
-                    <StockNews stock={recentNews} />
-                  ) : (
-                    <p className="text-muted-foreground text-center">
-                      Loading recent market news...
-                    </p>
-                  )}
-                </Card>
-              )
-            )}
-          </ScrollArea>
+            </div>
+          )}
+
+          {!stock && !aiRecommendations.length && (
+            <ScrollArea className="h-[calc(100vh-24rem)]">
+              <Card className="p-4">
+                <h3 className="font-semibold text-lg mb-4">Recent Market News</h3>
+                {recentNews ? (
+                  <StockNews stock={recentNews} />
+                ) : (
+                  <p className="text-muted-foreground text-center">
+                    Loading recent market news...
+                  </p>
+                )}
+              </Card>
+            </ScrollArea>
+          )}
         </div>
       </div>
     </div>
