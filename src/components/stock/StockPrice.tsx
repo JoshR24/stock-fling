@@ -7,10 +7,9 @@ interface StockPriceProps {
 export const StockPrice = ({ stock }: StockPriceProps) => {
   return (
     <div>
-      <div className="flex justify-between items-center mb-2">
-        <span className="text-3xl font-bold">${stock.price.toFixed(2)}</span>
+      <div className="flex justify-between items-center">
+        <span className="text-2xl font-bold">${stock.price.toFixed(2)}</span>
       </div>
-      <p className="text-muted-foreground text-sm leading-relaxed">{stock.description}</p>
     </div>
   );
 };

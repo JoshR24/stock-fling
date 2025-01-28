@@ -11,14 +11,14 @@ export const StockChart = ({ stock }: StockChartProps) => {
   // Add error handling for empty chart data
   if (!stock.chartData || stock.chartData.length === 0) {
     return (
-      <div className="h-[200px] flex items-center justify-center text-muted-foreground">
+      <div className="h-[150px] flex items-center justify-center text-muted-foreground">
         {stock.error || "No chart data available. This might be due to API rate limits, please try again in a minute."}
       </div>
     );
   }
   
   return (
-    <div className="h-[200px]">
+    <div className="h-[150px]">
       <ResponsiveContainer width="100%" height="100%">
         <AreaChart data={stock.chartData}>
           <defs>
