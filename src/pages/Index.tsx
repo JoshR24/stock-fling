@@ -5,7 +5,6 @@ import { Portfolio } from "@/components/Portfolio";
 import { useToast } from "@/components/ui/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AIRecommendations } from "@/components/AIRecommendations";
 
 interface IndexProps {
   showPortfolio?: boolean;
@@ -27,7 +26,6 @@ const Index = ({ showPortfolio: initialShowPortfolio = false }: IndexProps) => {
       setIsLoading(true);
       const newStocks = await generateStockBatch(5);
       setStocks(prev => {
-        // Filter out any stocks that might already be in the list
         const existingSymbols = new Set(prev.map(s => s.symbol));
         return [...prev, ...newStocks.filter(s => !existingSymbols.has(s.symbol))];
       });
@@ -51,7 +49,6 @@ const Index = ({ showPortfolio: initialShowPortfolio = false }: IndexProps) => {
       const [current, ...rest] = prev;
       if (direction === "right") {
         setPortfolio((portfolio) => {
-          // Prevent duplicates in portfolio
           if (!portfolio.find(s => s.symbol === current.symbol)) {
             return [...portfolio, current];
           }
@@ -65,7 +62,6 @@ const Index = ({ showPortfolio: initialShowPortfolio = false }: IndexProps) => {
       return rest;
     });
 
-    // Load more stocks when we're running low
     if (stocks.length <= 2) {
       try {
         await loadStocks();
@@ -85,11 +81,6 @@ const Index = ({ showPortfolio: initialShowPortfolio = false }: IndexProps) => {
         <h1 className="text-2xl font-bold mb-4">
           {showPortfolio ? "Portfolio" : "Stockr"}
         </h1>
-
-        <div className="mb-6">
-          <h2 className="text-lg font-semibold mb-2">AI Stock Recommendations</h2>
-          <AIRecommendations />
-        </div>
 
         <AnimatePresence mode="wait">
           {showPortfolio ? (

@@ -9,7 +9,6 @@ const corsHeaders = {
 };
 
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -25,7 +24,7 @@ serve(async (req) => {
     }
 
     const systemPrompt = `You are a financial advisor AI that recommends stocks based on investment ideas or market sentiments. 
-    For the given market sentiment or investment thesis, recommend exactly 3 relevant publicly traded stocks.
+    For the given market sentiment or investment thesis, recommend exactly 10 relevant publicly traded stocks.
     Format your response as a JSON array of objects, where each object has:
     - symbol: The stock ticker symbol
     - name: The company name
