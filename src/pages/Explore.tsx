@@ -5,9 +5,11 @@ import { StockNews } from "@/components/stock/StockNews";
 import { generateStockBatch } from "@/lib/mockStocks";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
-import { Search, ArrowLeft } from "lucide-react";
+import { Search, ArrowLeft, Sparkles } from "lucide-react";
 import { StockCard } from "@/components/StockCard";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { supabase } from "@/integrations/supabase/client";
 
 const companyData = [
   { symbol: "AAPL", name: "Apple Inc.", change: 2.5 },
@@ -19,11 +21,20 @@ const companyData = [
   { symbol: "NVDA", name: "NVIDIA Corporation", change: 4.1 }
 ];
 
+interface AIRecommendation {
+  symbol: string;
+  name: string;
+  reason: string;
+}
+
 const Explore = () => {
   const [stock, setStock] = useState<any>(null);
   const [recentNews, setRecentNews] = useState<any>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [suggestions, setSuggestions] = useState<typeof companyData>([]);
+  const [aiPrompt, setAiPrompt] = useState("");
+  const [isLoadingAI, setIsLoadingAI] = useState(false);
+  const [aiRecommendations, setAiRecommendations] = useState<AIRecommendation[]>([]);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -82,6 +93,42 @@ const Explore = () => {
     setStock(null);
     setSearchQuery("");
     setSuggestions([]);
+    setAiRecommendations([]);
+  };
+
+  const getAIRecommendations = async () => {
+    if (!aiPrompt.trim()) {
+      toast({
+        title: "Error",
+        description: "Please enter an investment idea or market sentiment.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsLoadingAI(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('getAIStockRecommendations', {
+        body: { prompt: aiPrompt },
+      });
+
+      if (error) throw error;
+
+      setAiRecommendations(data.recommendations);
+      toast({
+        title: "AI Recommendations Ready",
+        description: "Here are your personalized stock recommendations!",
+      });
+    } catch (error) {
+      console.error('Error getting AI recommendations:', error);
+      toast({
+        title: "Error",
+        description: "Failed to get AI recommendations. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingAI(false);
+    }
   };
 
   return (
@@ -101,69 +148,121 @@ const Explore = () => {
           <h1 className="text-2xl font-bold">Explore</h1>
         </div>
         
-        <div className="relative mb-4">
+        <div className="space-y-4">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-            <Input
-              type="text"
-              placeholder="Search stocks or companies..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10"
-            />
-          </div>
-          
-          {suggestions.length > 0 && (
-            <Card className="absolute w-full mt-1 z-50">
-              <ScrollArea className="max-h-[200px]">
-                {suggestions.map((company) => (
-                  <button
-                    key={company.symbol}
-                    className="w-full px-4 py-2 text-left hover:bg-accent transition-colors flex items-center justify-between"
-                    onClick={() => {
-                      loadStockData(company.symbol);
-                    }}
-                  >
-                    <div>
-                      <div className="font-medium">{company.symbol}</div>
-                      <div className="text-sm text-muted-foreground">{company.name}</div>
-                    </div>
-                    <span className={`text-sm ${company.change >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                      {company.change >= 0 ? '+' : ''}{company.change.toFixed(1)}%
-                    </span>
-                  </button>
-                ))}
-              </ScrollArea>
-            </Card>
-          )}
-        </div>
-
-        <ScrollArea className="h-[calc(100vh-8rem)]">
-          {stock ? (
-            <>
-              <StockCard 
-                stock={stock} 
-                onSwipe={(direction) => {
-                  console.log(`Swiped ${direction}`);
-                }} 
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+              <Input
+                type="text"
+                placeholder="Search stocks or companies..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
               />
-              <Card className="p-4 mt-4">
-                <StockNews stock={stock} />
+            </div>
+            
+            {suggestions.length > 0 && (
+              <Card className="absolute w-full mt-1 z-50">
+                <ScrollArea className="max-h-[200px]">
+                  {suggestions.map((company) => (
+                    <button
+                      key={company.symbol}
+                      className="w-full px-4 py-2 text-left hover:bg-accent transition-colors flex items-center justify-between"
+                      onClick={() => {
+                        loadStockData(company.symbol);
+                      }}
+                    >
+                      <div>
+                        <div className="font-medium">{company.symbol}</div>
+                        <div className="text-sm text-muted-foreground">{company.name}</div>
+                      </div>
+                      <span className={`text-sm ${company.change >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                        {company.change >= 0 ? '+' : ''}{company.change.toFixed(1)}%
+                      </span>
+                    </button>
+                  ))}
+                </ScrollArea>
               </Card>
-            </>
-          ) : (
+            )}
+          </div>
+
+          {!stock && (
             <Card className="p-4">
-              <h3 className="font-semibold text-lg mb-4">Recent Market News</h3>
-              {recentNews ? (
-                <StockNews stock={recentNews} />
-              ) : (
-                <p className="text-muted-foreground text-center">
-                  Loading recent market news...
-                </p>
-              )}
+              <div className="space-y-4">
+                <h3 className="font-semibold text-lg">AI Portfolio Recommendations</h3>
+                <div className="space-y-2">
+                  <Textarea
+                    placeholder="Describe your investment idea or market sentiment (e.g., 'I think renewable energy will grow significantly')"
+                    value={aiPrompt}
+                    onChange={(e) => setAiPrompt(e.target.value)}
+                    className="min-h-[100px]"
+                  />
+                  <Button 
+                    onClick={getAIRecommendations}
+                    disabled={isLoadingAI}
+                    className="w-full"
+                  >
+                    <Sparkles className="mr-2 h-4 w-4" />
+                    {isLoadingAI ? "Analyzing..." : "Get AI Recommendations"}
+                  </Button>
+                </div>
+
+                {aiRecommendations.length > 0 && (
+                  <div className="space-y-3 mt-4">
+                    <h4 className="font-medium">Recommended Stocks:</h4>
+                    {aiRecommendations.map((rec, index) => (
+                      <Card key={index} className="p-3">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <h5 className="font-medium">{rec.symbol}</h5>
+                            <p className="text-sm text-muted-foreground">{rec.name}</p>
+                          </div>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => loadStockData(rec.symbol)}
+                          >
+                            View
+                          </Button>
+                        </div>
+                        <p className="text-sm mt-2">{rec.reason}</p>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </div>
             </Card>
           )}
-        </ScrollArea>
+
+          <ScrollArea className="h-[calc(100vh-24rem)]">
+            {stock ? (
+              <>
+                <StockCard 
+                  stock={stock} 
+                  onSwipe={(direction) => {
+                    console.log(`Swiped ${direction}`);
+                  }} 
+                />
+                <Card className="p-4 mt-4">
+                  <StockNews stock={stock} />
+                </Card>
+              </>
+            ) : (
+              !aiRecommendations.length && (
+                <Card className="p-4">
+                  <h3 className="font-semibold text-lg mb-4">Recent Market News</h3>
+                  {recentNews ? (
+                    <StockNews stock={recentNews} />
+                  ) : (
+                    <p className="text-muted-foreground text-center">
+                      Loading recent market news...
+                    </p>
+                  )}
+                </Card>
+              )
+            )}
+          </ScrollArea>
+        </div>
       </div>
     </div>
   );
