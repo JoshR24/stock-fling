@@ -46,15 +46,13 @@ export const StockCard = ({ stock, onSwipe }: StockCardProps) => {
       }}
       whileDrag={{ scale: 1.05 }}
       animate={{
-        x: 0,
-        y: 0,
         scale: 1,
         rotate: 0,
       }}
       exit={{
         x: x.get() < 0 ? -2000 : 2000,
         opacity: 0,
-        transition: { duration: 1 }
+        transition: { duration: 0.5, type: "spring", bounce: 0 }
       }}
     >
       <Card className="w-full h-full glass-card overflow-hidden relative">
