@@ -7,6 +7,7 @@ interface StockHeaderProps {
 
 export const StockHeader = ({ stock }: StockHeaderProps) => {
   const isPositive = stock.change >= 0;
+  const formattedChange = stock.change.toFixed(1);
   
   return (
     <div className="flex justify-between items-start">
@@ -15,7 +16,7 @@ export const StockHeader = ({ stock }: StockHeaderProps) => {
         <p className="text-muted-foreground">{stock.name}</p>
       </div>
       <Badge variant={isPositive ? "default" : "destructive"}>
-        {isPositive ? "+" : ""}{stock.change}%
+        {isPositive ? "+" : ""}{formattedChange}%
       </Badge>
     </div>
   );
