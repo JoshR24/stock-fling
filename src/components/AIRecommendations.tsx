@@ -63,9 +63,23 @@ export const AIRecommendations = () => {
 
   const handleAddToPortfolio = async (symbol: string) => {
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        toast({
+          title: "Error",
+          description: "You must be logged in to add stocks to your portfolio.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       const { error } = await supabase
         .from('portfolios')
-        .insert([{ symbol }]);
+        .insert([{ 
+          symbol,
+          user_id: user.id 
+        }]);
 
       if (error) throw error;
 
