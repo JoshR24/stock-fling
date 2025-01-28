@@ -15,10 +15,19 @@ serve(async (req) => {
   }
 
   try {
+    if (!openAIApiKey) {
+      throw new Error('OpenAI API key is not configured');
+    }
+
     const { prompt } = await req.json();
+    console.log('Received prompt:', prompt);
+
+    if (!prompt) {
+      throw new Error('No prompt provided');
+    }
 
     const systemPrompt = `You are a financial advisor AI that recommends stocks based on investment ideas or market sentiments. 
-    For the given market sentiment or investment thesis, recommend exactly 10 relevant publicly traded stocks.
+    For the given market sentiment or investment thesis, recommend exactly 3 relevant publicly traded stocks.
     Format your response as a JSON array of objects, where each object has:
     - symbol: The stock ticker symbol
     - name: The company name
@@ -26,6 +35,7 @@ serve(async (req) => {
     
     Only return the JSON array, no other text.`;
 
+    console.log('Calling OpenAI API...');
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -33,7 +43,7 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
+        model: 'gpt-3.5-turbo',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: prompt }
@@ -41,6 +51,12 @@ serve(async (req) => {
         temperature: 0.7,
       }),
     });
+
+    if (!response.ok) {
+      const errorData = await response.text();
+      console.error('OpenAI API error:', errorData);
+      throw new Error(`OpenAI API error: ${response.status} ${response.statusText}`);
+    }
 
     const data = await response.json();
     console.log('OpenAI Response:', data);
