@@ -55,7 +55,7 @@ export const StockCard = ({ stock, onSwipe }: StockCardProps) => {
         transition: { duration: 0.5, type: "spring", bounce: 0, mass: 0.8 }
       }}
     >
-      <Card className="w-full h-full glass-card overflow-hidden relative">
+      <Card className="w-full h-full glass-card overflow-hidden relative shadow-xl">
         <motion.div 
           className="absolute inset-0 bg-red-500 pointer-events-none z-10" 
           style={{ opacity: redOverlayOpacity }} 
