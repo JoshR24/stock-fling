@@ -21,9 +21,15 @@ const companyData = [
 
 const Explore = () => {
   const [stock, setStock] = useState<any>(null);
+  const [recentNews, setRecentNews] = useState<any>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [suggestions, setSuggestions] = useState<typeof companyData>([]);
   const { toast } = useToast();
+
+  useEffect(() => {
+    // Load initial news
+    loadInitialNews();
+  }, []);
 
   useEffect(() => {
     if (searchQuery.length > 0) {
@@ -36,6 +42,15 @@ const Explore = () => {
       setSuggestions([]);
     }
   }, [searchQuery]);
+
+  const loadInitialNews = async () => {
+    try {
+      const stocks = await generateStockBatch(1);
+      setRecentNews(stocks[0]);
+    } catch (error) {
+      console.error('Failed to load initial news:', error);
+    }
+  };
 
   const loadStockData = async (symbol: string) => {
     try {
@@ -101,16 +116,26 @@ const Explore = () => {
         <ScrollArea className="h-[calc(100vh-8rem)]">
           {stock ? (
             <>
-              <StockCard stock={stock} onSwipeLeft={() => {}} onSwipeRight={() => {}} />
+              <StockCard 
+                stock={stock} 
+                onSwipe={(direction) => {
+                  console.log(`Swiped ${direction}`);
+                }} 
+              />
               <Card className="p-4 mt-4">
                 <StockNews stock={stock} />
               </Card>
             </>
           ) : (
             <Card className="p-4">
-              <p className="text-muted-foreground text-center">
-                Search for a stock to view details and news
-              </p>
+              <h3 className="font-semibold text-lg mb-4">Recent Market News</h3>
+              {recentNews ? (
+                <StockNews stock={recentNews} />
+              ) : (
+                <p className="text-muted-foreground text-center">
+                  Loading recent market news...
+                </p>
+              )}
             </Card>
           )}
         </ScrollArea>
