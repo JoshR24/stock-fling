@@ -64,13 +64,13 @@ export const AIRecommendations = () => {
 
   const handleAddToPortfolio = async (symbol: string) => {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      
+      // Remove user check and directly add to portfolio
       const { error } = await supabase
         .from('portfolios')
         .insert([{ 
           symbol,
-          user_id: user?.id 
+          // Use a default user_id since we're not requiring login
+          user_id: '00000000-0000-0000-0000-000000000000'
         }]);
 
       if (error) throw error;
@@ -114,25 +114,26 @@ export const AIRecommendations = () => {
       {selectedStock && (
         <div className="fixed inset-0 bg-background p-4 z-50">
           <div className="max-w-md mx-auto relative min-h-full">
-            <div className="flex justify-between items-center mb-4">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setSelectedStock(null)}
-                className="absolute top-2 left-2 z-50"
-              >
-                <ArrowLeft className="h-6 w-6" />
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="absolute top-2 right-2 z-50"
-                onClick={() => handleAddToPortfolio(selectedStock.symbol)}
-              >
-                <PlusCircle className="h-4 w-4 mr-1" />
-                Add to Portfolio
-              </Button>
-            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setSelectedStock(null)}
+              className="absolute top-2 left-2 z-50 bg-background/50 backdrop-blur-sm"
+            >
+              <ArrowLeft className="h-6 w-6" />
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="absolute top-2 right-2 z-50 bg-background/50 backdrop-blur-sm"
+              onClick={() => {
+                handleAddToPortfolio(selectedStock.symbol);
+                setSelectedStock(null); // Close the view after adding
+              }}
+            >
+              <PlusCircle className="h-4 w-4 mr-1" />
+              Add to Portfolio
+            </Button>
             <StockCard 
               stock={selectedStock} 
               onSwipe={handleSwipe}
