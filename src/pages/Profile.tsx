@@ -5,10 +5,12 @@ import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { Settings, CreditCard, HelpCircle, Lock, Bell, Moon } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
+import { useTheme } from "@/components/theme-provider";
 
 const Profile = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { theme, setTheme } = useTheme();
 
   const handleSignOut = async () => {
     try {
@@ -59,7 +61,10 @@ const Profile = () => {
               <Moon className="h-5 w-5" />
               <span>Dark Mode</span>
             </div>
-            <Switch />
+            <Switch 
+              checked={theme === "dark"}
+              onCheckedChange={(checked) => setTheme(checked ? "dark" : "light")}
+            />
           </div>
         </Card>
         

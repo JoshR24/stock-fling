@@ -5,10 +5,10 @@ import { StockNews } from "@/components/stock/StockNews";
 import { generateStockBatch } from "@/lib/mockStocks";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
-import { Search } from "lucide-react";
+import { Search, ArrowLeft } from "lucide-react";
 import { StockCard } from "@/components/StockCard";
+import { Button } from "@/components/ui/button";
 
-// Extended mock data with company names
 const companyData = [
   { symbol: "AAPL", name: "Apple Inc.", change: 2.5 },
   { symbol: "GOOGL", name: "Alphabet Inc.", change: -1.2 },
@@ -54,16 +54,16 @@ const Explore = () => {
   const loadStockData = async (symbol: string) => {
     try {
       const stocks = await generateStockBatch(1);
-      // Find the matching company data
       const companyInfo = companyData.find(company => company.symbol === symbol);
       if (companyInfo) {
-        // Merge the fetched stock data with the company info
         setStock({
           ...stocks[0],
           symbol: companyInfo.symbol,
           name: companyInfo.name,
           change: companyInfo.change,
         });
+        setSearchQuery("");
+        setSuggestions([]);
       }
       toast({
         title: "Stock Loaded",
@@ -78,10 +78,28 @@ const Explore = () => {
     }
   };
 
+  const handleBack = () => {
+    setStock(null);
+    setSearchQuery("");
+    setSuggestions([]);
+  };
+
   return (
     <div className="min-h-screen bg-background p-4 pb-16">
       <div className="max-w-md mx-auto">
-        <h1 className="text-2xl font-bold mb-4">Explore</h1>
+        <div className="flex items-center gap-2 mb-4">
+          {stock && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleBack}
+              className="p-0 hover:bg-transparent"
+            >
+              <ArrowLeft className="h-6 w-6" />
+            </Button>
+          )}
+          <h1 className="text-2xl font-bold">Explore</h1>
+        </div>
         
         <div className="relative mb-4">
           <div className="relative">
@@ -103,8 +121,6 @@ const Explore = () => {
                     key={company.symbol}
                     className="w-full px-4 py-2 text-left hover:bg-accent transition-colors flex items-center justify-between"
                     onClick={() => {
-                      setSearchQuery(company.symbol);
-                      setSuggestions([]);
                       loadStockData(company.symbol);
                     }}
                   >
