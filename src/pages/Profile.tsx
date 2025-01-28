@@ -2,7 +2,9 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
+import { Settings, CreditCard, HelpCircle, Lock, Bell, Moon } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 
 const Profile = () => {
   const navigate = useNavigate();
@@ -24,8 +26,61 @@ const Profile = () => {
 
   return (
     <div className="min-h-screen bg-background p-4 pb-16">
-      <div className="max-w-md mx-auto">
-        <h1 className="text-2xl font-bold mb-4">Profile</h1>
+      <div className="max-w-md mx-auto space-y-4">
+        <h1 className="text-2xl font-bold">Profile</h1>
+        
+        <Card className="p-4 space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Settings className="h-5 w-5" />
+              <span>Account Settings</span>
+            </div>
+            <Button variant="ghost" size="sm">Edit</Button>
+          </div>
+          
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <CreditCard className="h-5 w-5" />
+              <span>Subscription</span>
+            </div>
+            <Button variant="ghost" size="sm">Manage</Button>
+          </div>
+          
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Bell className="h-5 w-5" />
+              <span>Notifications</span>
+            </div>
+            <Switch />
+          </div>
+          
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Moon className="h-5 w-5" />
+              <span>Dark Mode</span>
+            </div>
+            <Switch />
+          </div>
+        </Card>
+        
+        <Card className="p-4 space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Lock className="h-5 w-5" />
+              <span>Privacy Policy</span>
+            </div>
+            <Button variant="ghost" size="sm">View</Button>
+          </div>
+          
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <HelpCircle className="h-5 w-5" />
+              <span>Terms of Service</span>
+            </div>
+            <Button variant="ghost" size="sm">View</Button>
+          </div>
+        </Card>
+        
         <Card className="p-4">
           <Button 
             variant="destructive" 

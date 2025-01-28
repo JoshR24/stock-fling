@@ -27,7 +27,6 @@ const Explore = () => {
   const { toast } = useToast();
 
   useEffect(() => {
-    // Load initial news
     loadInitialNews();
   }, []);
 
@@ -55,7 +54,17 @@ const Explore = () => {
   const loadStockData = async (symbol: string) => {
     try {
       const stocks = await generateStockBatch(1);
-      setStock(stocks[0]);
+      // Find the matching company data
+      const companyInfo = companyData.find(company => company.symbol === symbol);
+      if (companyInfo) {
+        // Merge the fetched stock data with the company info
+        setStock({
+          ...stocks[0],
+          symbol: companyInfo.symbol,
+          name: companyInfo.name,
+          change: companyInfo.change,
+        });
+      }
       toast({
         title: "Stock Loaded",
         description: `Successfully loaded data for ${symbol}`,
