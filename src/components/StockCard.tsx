@@ -67,7 +67,7 @@ export const StockCard = ({ stock, onSwipe }: StockCardProps) => {
         />
         
         <ScrollArea className="h-full">
-          <div className="p-6 space-y-4">
+          <div className="p-4 space-y-3">
             <StockHeader stock={stock} />
             <StockChart stock={stock} />
             <StockPrice stock={stock} />

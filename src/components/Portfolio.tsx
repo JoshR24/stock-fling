@@ -28,7 +28,7 @@ export const Portfolio = ({ stocks }: PortfolioProps) => {
                 <p className="text-sm text-muted-foreground">{stock.name}</p>
               </div>
               <Badge variant={stock.change >= 0 ? "default" : "destructive"}>
-                {stock.change >= 0 ? "+" : ""}{stock.change}%
+                {stock.change >= 0 ? "+" : ""}{stock.change.toFixed(1)}%
               </Badge>
             </div>
             <div className="h-24">
