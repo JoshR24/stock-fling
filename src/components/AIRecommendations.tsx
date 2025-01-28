@@ -3,9 +3,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Card } from "./ui/card";
-import { useToast } from "./ui/use-toast";
-import { Eye, Loader2, PlusCircle } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { Eye, Loader2, PlusCircle, ArrowLeft } from "lucide-react";
 import { generateStockBatch } from "@/lib/mockStocks";
+import { StockCard } from "./StockCard";
 
 export const AIRecommendations = () => {
   const [prompt, setPrompt] = useState("");
@@ -65,20 +66,11 @@ export const AIRecommendations = () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       
-      if (!user) {
-        toast({
-          title: "Error",
-          description: "You must be logged in to add stocks to your portfolio.",
-          variant: "destructive",
-        });
-        return;
-      }
-
       const { error } = await supabase
         .from('portfolios')
         .insert([{ 
           symbol,
-          user_id: user.id 
+          user_id: user?.id 
         }]);
 
       if (error) throw error;
@@ -97,6 +89,13 @@ export const AIRecommendations = () => {
     }
   };
 
+  const handleSwipe = (direction: "left" | "right") => {
+    if (direction === "right" && selectedStock) {
+      handleAddToPortfolio(selectedStock.symbol);
+    }
+    setSelectedStock(null);
+  };
+
   return (
     <div className="space-y-4">
       <form onSubmit={handleSubmit} className="flex gap-2">
@@ -113,21 +112,33 @@ export const AIRecommendations = () => {
       </form>
 
       {selectedStock && (
-        <Card className="p-4">
-          <div className="flex justify-between items-start mb-4">
-            <div>
-              <h3 className="text-xl font-bold">{selectedStock.symbol}</h3>
-              <p className="text-sm text-muted-foreground">{selectedStock.name}</p>
+        <div className="fixed inset-0 bg-background p-4 z-50">
+          <div className="max-w-md mx-auto relative min-h-full">
+            <div className="flex justify-between items-center mb-4">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setSelectedStock(null)}
+                className="absolute top-2 left-2 z-50"
+              >
+                <ArrowLeft className="h-6 w-6" />
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="absolute top-2 right-2 z-50"
+                onClick={() => handleAddToPortfolio(selectedStock.symbol)}
+              >
+                <PlusCircle className="h-4 w-4 mr-1" />
+                Add to Portfolio
+              </Button>
             </div>
-            <Button variant="outline" onClick={() => setSelectedStock(null)}>
-              Close
-            </Button>
+            <StockCard 
+              stock={selectedStock} 
+              onSwipe={handleSwipe}
+            />
           </div>
-          <div className="space-y-2">
-            <p className="text-2xl font-bold">${selectedStock.price?.toFixed(2)}</p>
-            <p className="text-sm">{selectedStock.description}</p>
-          </div>
-        </Card>
+        </div>
       )}
 
       {recommendations.length > 0 && !selectedStock && (
