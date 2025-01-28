@@ -5,7 +5,7 @@ import { StockNews } from "@/components/stock/StockNews";
 import { generateStockBatch } from "@/lib/mockStocks";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
-import { Search, ArrowLeft, Sparkles } from "lucide-react";
+import { Search, ArrowLeft, Sparkles, PlusCircle } from "lucide-react";
 import { StockCard } from "@/components/StockCard";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -94,6 +94,42 @@ const Explore = () => {
     setSearchQuery("");
     setSuggestions([]);
     setAiRecommendations([]);
+  };
+
+  const handleAddToPortfolio = async (symbol: string) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        toast({
+          title: "Error",
+          description: "You must be logged in to add stocks to your portfolio.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const { error } = await supabase
+        .from('portfolios')
+        .insert([{ 
+          symbol,
+          user_id: user.id 
+        }]);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: `${symbol} has been added to your portfolio.`,
+      });
+    } catch (error) {
+      console.error('Error adding to portfolio:', error);
+      toast({
+        title: "Error",
+        description: "Failed to add stock to portfolio. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const getAIRecommendations = async () => {
@@ -236,7 +272,16 @@ const Explore = () => {
 
           <ScrollArea className="h-[calc(100vh-24rem)]">
             {stock ? (
-              <>
+              <div className="relative">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="absolute top-2 right-2 z-10"
+                  onClick={() => handleAddToPortfolio(stock.symbol)}
+                >
+                  <PlusCircle className="h-4 w-4 mr-1" />
+                  Add to Portfolio
+                </Button>
                 <StockCard 
                   stock={stock} 
                   onSwipe={(direction) => {
@@ -246,7 +291,7 @@ const Explore = () => {
                 <Card className="p-4 mt-4">
                   <StockNews stock={stock} />
                 </Card>
-              </>
+              </div>
             ) : (
               !aiRecommendations.length && (
                 <Card className="p-4">
