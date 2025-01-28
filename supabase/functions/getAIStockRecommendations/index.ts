@@ -23,14 +23,14 @@ serve(async (req) => {
       throw new Error('No prompt provided');
     }
 
-    const systemPrompt = `You are a financial advisor AI that recommends stocks based on investment ideas or market sentiments. 
-    For the given market sentiment or investment thesis, recommend exactly 10 relevant publicly traded stocks.
-    Format your response as a JSON array of objects, where each object has:
-    - symbol: The stock ticker symbol
-    - name: The company name
-    - reason: A brief explanation of why this stock fits the investment thesis
-    
-    Only return the JSON array, no other text.`;
+    const systemPrompt = `You are a financial advisor AI. Your task is to recommend exactly 10 relevant publicly traded stocks based on the given market sentiment or investment thesis.
+    IMPORTANT: Respond ONLY with a JSON array. Do not include any markdown formatting, explanation text, or code blocks.
+    Each object in the array must have exactly these fields:
+    - symbol: stock ticker symbol (string)
+    - name: company name (string)
+    - reason: brief explanation (string)
+    Example response format:
+    [{"symbol":"AAPL","name":"Apple Inc.","reason":"Strong market position in consumer electronics"}]`;
 
     console.log('Calling OpenAI API...');
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -56,13 +56,21 @@ serve(async (req) => {
     }
 
     const data = await response.json();
-    console.log('Successfully received OpenAI response');
+    console.log('Received OpenAI response');
 
     if (!data.choices?.[0]?.message?.content) {
       throw new Error('Invalid response from OpenAI');
     }
 
-    const recommendations = JSON.parse(data.choices[0].message.content);
+    let recommendations;
+    try {
+      recommendations = JSON.parse(data.choices[0].message.content);
+      console.log('Successfully parsed recommendations:', recommendations);
+    } catch (parseError) {
+      console.error('Failed to parse OpenAI response:', data.choices[0].message.content);
+      throw new Error('Failed to parse AI recommendations');
+    }
+
     return new Response(JSON.stringify({ recommendations }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
