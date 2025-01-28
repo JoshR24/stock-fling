@@ -7,42 +7,51 @@ import { useToast } from "@/components/ui/use-toast";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
 
+// Mock data mapping company names to symbols
+const companyData = [
+  { symbol: "AAPL", name: "Apple Inc.", change: 2.5 },
+  { symbol: "GOOGL", name: "Alphabet Inc.", change: -1.2 },
+  { symbol: "MSFT", name: "Microsoft Corporation", change: 1.8 },
+  { symbol: "AMZN", name: "Amazon.com Inc.", change: 0.9 },
+  { symbol: "META", name: "Meta Platforms Inc.", change: -0.7 },
+  { symbol: "TSLA", name: "Tesla Inc.", change: 3.2 },
+  { symbol: "NVDA", name: "NVIDIA Corporation", change: 4.1 }
+];
+
 const Explore = () => {
   const [stock, setStock] = useState<any>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [suggestions, setSuggestions] = useState<typeof companyData>([]);
   const { toast } = useToast();
 
   useEffect(() => {
-    const loadStock = async () => {
-      try {
-        const stocks = await generateStockBatch(1);
-        setStock(stocks[0]);
-      } catch (error) {
-        toast({
-          title: "Error",
-          description: "Failed to load stock data. Please try again.",
-          variant: "destructive",
-        });
-      }
-    };
-
-    loadStock();
-  }, [toast]);
-
-  // Mock suggestions - in a real app, this would come from an API
-  useEffect(() => {
     if (searchQuery.length > 0) {
-      // Mock stock symbols for demonstration
-      const mockSymbols = ["AAPL", "GOOGL", "MSFT", "AMZN", "META", "TSLA", "NVDA"];
-      const filtered = mockSymbols.filter(symbol => 
-        symbol.toLowerCase().includes(searchQuery.toLowerCase())
+      const filtered = companyData.filter(company => 
+        company.symbol.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        company.name.toLowerCase().includes(searchQuery.toLowerCase())
       );
       setSuggestions(filtered);
     } else {
       setSuggestions([]);
     }
   }, [searchQuery]);
+
+  const loadStockData = async (symbol: string) => {
+    try {
+      const stocks = await generateStockBatch(1);
+      setStock(stocks[0]);
+      toast({
+        title: "Stock Loaded",
+        description: `Successfully loaded data for ${symbol}`,
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to load stock data. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
 
   if (!stock) {
     return (
@@ -67,7 +76,7 @@ const Explore = () => {
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
             <Input
               type="text"
-              placeholder="Search stocks..."
+              placeholder="Search stocks or companies..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10"
@@ -77,21 +86,23 @@ const Explore = () => {
           {suggestions.length > 0 && (
             <Card className="absolute w-full mt-1 z-50">
               <ScrollArea className="max-h-[200px]">
-                {suggestions.map((symbol) => (
+                {suggestions.map((company) => (
                   <button
-                    key={symbol}
-                    className="w-full px-4 py-2 text-left hover:bg-accent transition-colors"
+                    key={company.symbol}
+                    className="w-full px-4 py-2 text-left hover:bg-accent transition-colors flex items-center justify-between"
                     onClick={() => {
-                      setSearchQuery(symbol);
+                      setSearchQuery(company.symbol);
                       setSuggestions([]);
-                      // Here you would typically fetch the stock data
-                      toast({
-                        title: "Stock Selected",
-                        description: `Loading data for ${symbol}...`,
-                      });
+                      loadStockData(company.symbol);
                     }}
                   >
-                    {symbol}
+                    <div>
+                      <div className="font-medium">{company.symbol}</div>
+                      <div className="text-sm text-muted-foreground">{company.name}</div>
+                    </div>
+                    <span className={`text-sm ${company.change >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                      {company.change >= 0 ? '+' : ''}{company.change.toFixed(1)}%
+                    </span>
                   </button>
                 ))}
               </ScrollArea>

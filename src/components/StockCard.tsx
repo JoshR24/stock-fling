@@ -52,7 +52,7 @@ export const StockCard = ({ stock, onSwipe }: StockCardProps) => {
       exit={{
         x: x.get() < 0 ? -2000 : 2000,
         opacity: 0,
-        transition: { duration: 0.5, type: "spring", bounce: 0 }
+        transition: { duration: 0.5, type: "spring", bounce: 0, mass: 0.8 }
       }}
     >
       <Card className="w-full h-full glass-card overflow-hidden relative">
