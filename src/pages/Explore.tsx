@@ -3,11 +3,12 @@ import { Card } from "@/components/ui/card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { StockNews } from "@/components/stock/StockNews";
 import { generateStockBatch } from "@/lib/mockStocks";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
+import { StockCard } from "@/components/StockCard";
 
-// Mock data mapping company names to symbols
+// Extended mock data with company names
 const companyData = [
   { symbol: "AAPL", name: "Apple Inc.", change: 2.5 },
   { symbol: "GOOGL", name: "Alphabet Inc.", change: -1.2 },
@@ -52,19 +53,6 @@ const Explore = () => {
       });
     }
   };
-
-  if (!stock) {
-    return (
-      <div className="min-h-screen bg-background p-4 pb-16">
-        <div className="max-w-md mx-auto">
-          <h1 className="text-2xl font-bold mb-4">Explore</h1>
-          <Card className="p-4">
-            Loading...
-          </Card>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-background p-4 pb-16">
@@ -111,9 +99,20 @@ const Explore = () => {
         </div>
 
         <ScrollArea className="h-[calc(100vh-8rem)]">
-          <Card className="p-4">
-            <StockNews stock={stock} />
-          </Card>
+          {stock ? (
+            <>
+              <StockCard stock={stock} onSwipeLeft={() => {}} onSwipeRight={() => {}} />
+              <Card className="p-4 mt-4">
+                <StockNews stock={stock} />
+              </Card>
+            </>
+          ) : (
+            <Card className="p-4">
+              <p className="text-muted-foreground text-center">
+                Search for a stock to view details and news
+              </p>
+            </Card>
+          )}
         </ScrollArea>
       </div>
     </div>
