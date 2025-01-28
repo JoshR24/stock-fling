@@ -46,14 +46,13 @@ serve(async (req) => {
 
     console.log(`Processing request for symbol: ${symbol}`);
 
-    // Get real-time quote, company profile, and company basic financials from Finnhub
-    const [quoteResponse, profileResponse, basicFinancialsResponse] = await Promise.all([
+    // Get real-time quote and company profile from Finnhub
+    const [quoteResponse, profileResponse] = await Promise.all([
       fetch(`https://finnhub.io/api/v1/quote?symbol=${symbol}&token=${Deno.env.get('FINNHUB_API_KEY')}`),
-      fetch(`https://finnhub.io/api/v1/stock/profile2?symbol=${symbol}&token=${Deno.env.get('FINNHUB_API_KEY')}`),
-      fetch(`https://finnhub.io/api/v1/stock/metric?symbol=${symbol}&metric=all&token=${Deno.env.get('FINNHUB_API_KEY')}`)
+      fetch(`https://finnhub.io/api/v1/stock/profile2?symbol=${symbol}&token=${Deno.env.get('FINNHUB_API_KEY')}`)
     ]);
 
-    if (!quoteResponse.ok || !profileResponse.ok || !basicFinancialsResponse.ok) {
+    if (!quoteResponse.ok || !profileResponse.ok) {
       return new Response(
         JSON.stringify({ 
           error: `Failed to fetch data for ${symbol}`,
@@ -67,10 +66,9 @@ serve(async (req) => {
       );
     }
 
-    const [quoteData, profileData, basicFinancialsData] = await Promise.all([
+    const [quoteData, profileData] = await Promise.all([
       quoteResponse.json(),
-      profileResponse.json(),
-      basicFinancialsResponse.json()
+      profileResponse.json()
     ]);
 
     // Get 1 month of daily historical data from Alpha Vantage
@@ -127,23 +125,11 @@ serve(async (req) => {
       console.warn(`Failed to fetch news for ${symbol}`);
     }
 
-    // Create a comprehensive description using company profile and basic financials
-    const metrics = basicFinancialsData.metric || {};
-    const marketCap = metrics.marketCapitalization 
-      ? `Market Cap: $${(metrics.marketCapitalization / 1000).toFixed(1)}B. `
-      : '';
-    const peRatio = metrics.peBasicExcl 
-      ? `P/E Ratio: ${metrics.peBasicExcl.toFixed(2)}. `
-      : '';
-    const dividendYield = metrics.dividendYieldIndicatedAnnual 
-      ? `Dividend Yield: ${metrics.dividendYieldIndicatedAnnual.toFixed(2)}%. `
-      : '';
-
+    // Create a focused description about what the company does
     const description = profileData.description 
-      ? `${profileData.description} ${marketCap}${peRatio}${dividendYield}`
-      : `${symbol} is a publicly traded company. ${marketCap}${peRatio}${dividendYield}`;
+      ? profileData.description.split('.')[0] + '.' // Take just the first sentence
+      : `${profileData.name || symbol} is a publicly traded company.`;
 
-    // Even if we don't have chart data, we can still return other stock information
     const stockData: StockData = {
       symbol,
       name: profileData.name || symbol,
