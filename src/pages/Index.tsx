@@ -5,6 +5,7 @@ import { Portfolio } from "@/components/Portfolio";
 import { useToast } from "@/components/ui/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
 import { Skeleton } from "@/components/ui/skeleton";
+import { AIRecommendations } from "@/components/AIRecommendations";
 
 interface IndexProps {
   showPortfolio?: boolean;
@@ -84,6 +85,11 @@ const Index = ({ showPortfolio: initialShowPortfolio = false }: IndexProps) => {
         <h1 className="text-2xl font-bold mb-4">
           {showPortfolio ? "Portfolio" : "Stockr"}
         </h1>
+
+        <div className="mb-6">
+          <h2 className="text-lg font-semibold mb-2">AI Stock Recommendations</h2>
+          <AIRecommendations />
+        </div>
 
         <AnimatePresence mode="wait">
           {showPortfolio ? (

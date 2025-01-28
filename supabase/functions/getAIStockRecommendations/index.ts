@@ -8,32 +8,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Adjusted rate limiting to be more lenient
-const RATE_LIMIT_WINDOW = 60000; // 1 minute
-const MAX_REQUESTS_PER_WINDOW = 10; // Increased from 3 to 10 requests per minute
-const requestLog: { timestamp: number }[] = [];
-
-function isRateLimited(): boolean {
-  const now = Date.now();
-  // Remove requests older than the window
-  const windowStart = now - RATE_LIMIT_WINDOW;
-  const recentRequests = requestLog.filter(req => req.timestamp > windowStart);
-  
-  // Update the request log
-  requestLog.length = 0;
-  requestLog.push(...recentRequests);
-  
-  // Check if we're over the limit
-  if (recentRequests.length >= MAX_REQUESTS_PER_WINDOW) {
-    console.log(`Rate limit exceeded. Current requests in window: ${recentRequests.length}`);
-    return true;
-  }
-  
-  // Add the current request
-  requestLog.push({ timestamp: now });
-  return false;
-}
-
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -43,23 +17,6 @@ serve(async (req) => {
   try {
     console.log('Received request for AI recommendations');
     
-    // Check rate limiting
-    if (isRateLimited()) {
-      console.log('Request rate limited');
-      return new Response(
-        JSON.stringify({ 
-          error: "Too many requests. Please wait a minute before trying again." 
-        }), {
-        status: 429,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    if (!openAIApiKey) {
-      console.error('OpenAI API key not configured');
-      throw new Error('OpenAI API key is not configured');
-    }
-
     const { prompt } = await req.json();
     console.log('Processing prompt:', prompt);
 
@@ -84,7 +41,7 @@ serve(async (req) => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4',
+        model: 'gpt-4o-mini',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: prompt }
@@ -96,17 +53,6 @@ serve(async (req) => {
     if (!response.ok) {
       const errorData = await response.text();
       console.error('OpenAI API error:', errorData);
-      
-      if (response.status === 429) {
-        return new Response(
-          JSON.stringify({ 
-            error: "OpenAI API is busy. Please try again in a few moments." 
-          }), {
-          status: 429,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-      
       throw new Error(`OpenAI API error: ${response.status} ${response.statusText}`);
     }
 
