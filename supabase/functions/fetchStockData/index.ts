@@ -5,6 +5,10 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+// Simple in-memory cache (will reset when function cold starts)
+const cache = new Map();
+const CACHE_DURATION = 1000 * 60 * 60; // 1 hour
+
 interface StockData {
   symbol: string;
   name: string;
@@ -21,6 +25,27 @@ interface StockData {
     url: string;
   }[];
 }
+
+// Helper function to get cached data
+const getCachedData = (key: string) => {
+  const cached = cache.get(key);
+  if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+    console.log(`Cache hit for ${key}`);
+    return cached.data;
+  }
+  return null;
+};
+
+// Helper function to set cached data
+const setCachedData = (key: string, data: any) => {
+  cache.set(key, {
+    data,
+    timestamp: Date.now()
+  });
+};
+
+// Helper function to add delay between API calls
+const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -46,6 +71,14 @@ serve(async (req) => {
 
     console.log(`Processing request for symbol: ${symbol}`);
 
+    // Check cache first
+    const cachedData = getCachedData(symbol);
+    if (cachedData) {
+      return new Response(JSON.stringify(cachedData), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     // Get real-time quote and company profile from Finnhub
     const [quoteResponse, profileResponse] = await Promise.all([
       fetch(`https://finnhub.io/api/v1/quote?symbol=${symbol}&token=${Deno.env.get('FINNHUB_API_KEY')}`),
@@ -53,17 +86,7 @@ serve(async (req) => {
     ]);
 
     if (!quoteResponse.ok || !profileResponse.ok) {
-      return new Response(
-        JSON.stringify({ 
-          error: `Failed to fetch data for ${symbol}`,
-          details: `Quote response: ${quoteResponse.status}, Profile response: ${profileResponse.status}`,
-          timestamp: new Date().toISOString()
-        }),
-        { 
-          status: 400,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        }
-      );
+      throw new Error(`Failed to fetch data for ${symbol}`);
     }
 
     const [quoteData, profileData] = await Promise.all([
@@ -71,7 +94,10 @@ serve(async (req) => {
       profileResponse.json()
     ]);
 
-    // Get 1 month of daily historical data from Alpha Vantage
+    // Add a small delay before making Alpha Vantage request to avoid rate limits
+    await delay(1000);
+
+    // Get historical data from Alpha Vantage
     const chartResponse = await fetch(
       `https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=${symbol}&apikey=${Deno.env.get('ALPHAVANTAGE_API_KEY')}`
     );
@@ -149,7 +175,10 @@ serve(async (req) => {
         }))
     };
 
-    console.log(`Processed data for ${symbol}. Chart points: ${chartPoints.length}`);
+    // Cache the successful response
+    setCachedData(symbol, stockData);
+
+    console.log(`Successfully processed data for ${symbol}. Chart points: ${chartPoints.length}`);
 
     return new Response(JSON.stringify(stockData), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
