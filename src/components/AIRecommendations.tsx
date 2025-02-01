@@ -74,7 +74,7 @@ export const AIRecommendations = () => {
       toast({
         title: "Success",
         description: `${symbol} has been added to your portfolio.`,
-        duration: 200, // Reduced from 500 to 200 milliseconds
+        duration: 50, // Reduced from 200 to 50 milliseconds to make it extremely brief
       });
       
       // Automatically close the stock detail view after a very short delay
