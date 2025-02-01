@@ -1,12 +1,10 @@
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Button } from "./ui/button";
-import { Input } from "./ui/input";
-import { Card } from "./ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Eye, Loader2, PlusCircle, ArrowLeft } from "lucide-react";
 import { generateStockBatch } from "@/lib/mockStocks";
-import { StockCard } from "./StockCard";
+import { SearchForm } from "./recommendations/SearchForm";
+import { RecommendationsList } from "./recommendations/RecommendationsList";
+import { StockDetailView } from "./recommendations/StockDetailView";
 
 export const AIRecommendations = () => {
   const [prompt, setPrompt] = useState("");
@@ -64,12 +62,10 @@ export const AIRecommendations = () => {
 
   const handleAddToPortfolio = async (symbol: string) => {
     try {
-      // Remove user check and directly add to portfolio
       const { error } = await supabase
         .from('portfolios')
         .insert([{ 
           symbol,
-          // Use a default user_id since we're not requiring login
           user_id: '00000000-0000-0000-0000-000000000000'
         }]);
 
@@ -99,81 +95,28 @@ export const AIRecommendations = () => {
 
   return (
     <div className="space-y-4">
-      <form onSubmit={handleSubmit} className="flex gap-2">
-        <Input
-          value={prompt}
-          onChange={(e) => setPrompt(e.target.value)}
-          placeholder="E.g., Recommend stocks for renewable energy sector"
-          className="flex-1"
-          disabled={isLoading}
-        />
-        <Button type="submit" disabled={isLoading}>
-          {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Get Recommendations"}
-        </Button>
-      </form>
+      <SearchForm
+        prompt={prompt}
+        setPrompt={setPrompt}
+        onSubmit={handleSubmit}
+        isLoading={isLoading}
+      />
 
       {selectedStock && (
-        <div className="fixed inset-0 bg-background p-4 z-50">
-          <div className="max-w-md mx-auto relative min-h-full">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setSelectedStock(null)}
-              className="absolute top-2 left-2 z-50 bg-background/50 backdrop-blur-sm"
-            >
-              <ArrowLeft className="h-6 w-6" />
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="absolute top-2 right-2 z-50 bg-background/50 backdrop-blur-sm"
-              onClick={() => {
-                handleAddToPortfolio(selectedStock.symbol);
-                setSelectedStock(null); // Close the view after adding
-              }}
-            >
-              <PlusCircle className="h-4 w-4 mr-1" />
-              Add to Portfolio
-            </Button>
-            <StockCard 
-              stock={selectedStock} 
-              onSwipe={handleSwipe}
-            />
-          </div>
-        </div>
+        <StockDetailView
+          stock={selectedStock}
+          onClose={() => setSelectedStock(null)}
+          onAddToPortfolio={handleAddToPortfolio}
+          onSwipe={handleSwipe}
+        />
       )}
 
       {recommendations.length > 0 && !selectedStock && (
-        <div className="space-y-3">
-          {recommendations.map((rec, index) => (
-            <Card key={index} className="p-4">
-              <div className="flex justify-between items-start">
-                <div>
-                  <h3 className="font-semibold">{rec.symbol} - {rec.name}</h3>
-                  <p className="text-sm text-muted-foreground mt-1">{rec.reason}</p>
-                </div>
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleViewStock(rec.symbol)}
-                  >
-                    <Eye className="h-4 w-4 mr-1" />
-                    View
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleAddToPortfolio(rec.symbol)}
-                  >
-                    <PlusCircle className="h-4 w-4 mr-1" />
-                    Add
-                  </Button>
-                </div>
-              </div>
-            </Card>
-          ))}
-        </div>
+        <RecommendationsList
+          recommendations={recommendations}
+          onViewStock={handleViewStock}
+          onAddToPortfolio={handleAddToPortfolio}
+        />
       )}
     </div>
   );
