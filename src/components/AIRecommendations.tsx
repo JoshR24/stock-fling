@@ -78,6 +78,7 @@ export const AIRecommendations = () => {
       toast({
         title: "Success",
         description: `${symbol} has been added to your portfolio.`,
+        duration: 1000, // Set duration to 1 second
       });
     } catch (error) {
       console.error('Error adding to portfolio:', error);
