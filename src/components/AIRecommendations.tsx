@@ -74,13 +74,13 @@ export const AIRecommendations = () => {
       toast({
         title: "Success",
         description: `${symbol} has been added to your portfolio.`,
-        duration: 1000,
+        duration: 500, // Reduced from 1000 to 500 milliseconds
       });
       
-      // Automatically close the stock detail view after a short delay
+      // Automatically close the stock detail view after a very short delay
       setTimeout(() => {
         setSelectedStock(null);
-      }, 300);
+      }, 50); // Reduced from 100 to 50 milliseconds
       
     } catch (error) {
       console.error('Error adding to portfolio:', error);
@@ -99,7 +99,7 @@ export const AIRecommendations = () => {
       // Close the detail view for left swipes or when no action is taken
       setTimeout(() => {
         setSelectedStock(null);
-      }, 300);
+      }, 50); // Reduced from 100 to 50 milliseconds
     }
   };
 
