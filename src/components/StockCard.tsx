@@ -7,6 +7,7 @@ import { StockChart } from "./stock/StockChart";
 import { StockPrice } from "./stock/StockPrice";
 import { StockNews } from "./stock/StockNews";
 import { SwipeInstructions } from "./stock/SwipeInstructions";
+import { useState } from "react";
 
 interface StockCardProps {
   stock: Stock;
@@ -14,6 +15,7 @@ interface StockCardProps {
 }
 
 export const StockCard = ({ stock, onSwipe }: StockCardProps) => {
+  const [currentTimeframe, setCurrentTimeframe] = useState<'1D' | '5D' | '30D' | '1Y'>('30D');
   const x = useMotionValue(0);
   const rotate = useTransform(x, [-200, 200], [-30, 30]);
   
@@ -68,8 +70,8 @@ export const StockCard = ({ stock, onSwipe }: StockCardProps) => {
         
         <ScrollArea className="h-full">
           <div className="p-3 space-y-2">
-            <StockHeader stock={stock} />
-            <StockChart stock={stock} />
+            <StockHeader stock={stock} timeframe={currentTimeframe} />
+            <StockChart stock={stock} onTimeframeChange={setCurrentTimeframe} />
             <StockPrice stock={stock} />
             <div className="mt-2 text-sm text-muted-foreground leading-snug">
               {stock.description}

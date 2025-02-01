@@ -5,9 +5,10 @@ import { Button } from "@/components/ui/button";
 
 interface StockChartProps {
   stock: Stock;
+  onTimeframeChange: (timeframe: '1D' | '5D' | '30D' | '1Y') => void;
 }
 
-export const StockChart = ({ stock }: StockChartProps) => {
+export const StockChart = ({ stock, onTimeframeChange }: StockChartProps) => {
   const [timeframe, setTimeframe] = useState<'1D' | '5D' | '30D' | '1Y'>('30D');
   const isPositive = stock.change >= 0;
   
@@ -33,6 +34,11 @@ export const StockChart = ({ stock }: StockChartProps) => {
         return stock.chartData;
     }
   };
+
+  const handleTimeframeChange = (newTimeframe: '1D' | '5D' | '30D' | '1Y') => {
+    setTimeframe(newTimeframe);
+    onTimeframeChange(newTimeframe);
+  };
   
   return (
     <div className="space-y-2">
@@ -40,7 +46,7 @@ export const StockChart = ({ stock }: StockChartProps) => {
         <Button 
           variant={timeframe === '1D' ? "secondary" : "ghost"} 
           size="sm"
-          onClick={() => setTimeframe('1D')}
+          onClick={() => handleTimeframeChange('1D')}
           className="h-6 px-2"
         >
           1D
@@ -48,7 +54,7 @@ export const StockChart = ({ stock }: StockChartProps) => {
         <Button 
           variant={timeframe === '5D' ? "secondary" : "ghost"} 
           size="sm"
-          onClick={() => setTimeframe('5D')}
+          onClick={() => handleTimeframeChange('5D')}
           className="h-6 px-2"
         >
           5D
@@ -56,7 +62,7 @@ export const StockChart = ({ stock }: StockChartProps) => {
         <Button 
           variant={timeframe === '30D' ? "secondary" : "ghost"} 
           size="sm"
-          onClick={() => setTimeframe('30D')}
+          onClick={() => handleTimeframeChange('30D')}
           className="h-6 px-2"
         >
           30D
@@ -64,7 +70,7 @@ export const StockChart = ({ stock }: StockChartProps) => {
         <Button 
           variant={timeframe === '1Y' ? "secondary" : "ghost"} 
           size="sm"
-          onClick={() => setTimeframe('1Y')}
+          onClick={() => handleTimeframeChange('1Y')}
           className="h-6 px-2"
         >
           1Y
