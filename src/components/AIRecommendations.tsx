@@ -74,8 +74,14 @@ export const AIRecommendations = () => {
       toast({
         title: "Success",
         description: `${symbol} has been added to your portfolio.`,
-        duration: 1000, // Set duration to 1 second
+        duration: 1000,
       });
+      
+      // Automatically close the stock detail view after a short delay
+      setTimeout(() => {
+        setSelectedStock(null);
+      }, 300);
+      
     } catch (error) {
       console.error('Error adding to portfolio:', error);
       toast({
@@ -89,8 +95,12 @@ export const AIRecommendations = () => {
   const handleSwipe = (direction: "left" | "right") => {
     if (direction === "right" && selectedStock) {
       handleAddToPortfolio(selectedStock.symbol);
+    } else {
+      // Close the detail view for left swipes or when no action is taken
+      setTimeout(() => {
+        setSelectedStock(null);
+      }, 300);
     }
-    setSelectedStock(null);
   };
 
   return (
