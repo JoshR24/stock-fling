@@ -10,7 +10,6 @@ interface StockChartProps {
 
 export const StockChart = ({ stock, onTimeframeChange }: StockChartProps) => {
   const [timeframe, setTimeframe] = useState<'1D' | '5D' | '30D' | '1Y'>('30D');
-  const isPositive = stock.change >= 0;
   
   if (!stock.chartData || stock.chartData.length === 0) {
     return (
@@ -35,10 +34,22 @@ export const StockChart = ({ stock, onTimeframeChange }: StockChartProps) => {
     }
   };
 
+  const calculatePerformance = () => {
+    const filteredData = getFilteredData();
+    if (filteredData.length < 2) return stock.change;
+    
+    const firstPrice = filteredData[0].value;
+    const lastPrice = filteredData[filteredData.length - 1].value;
+    return ((lastPrice - firstPrice) / firstPrice) * 100;
+  };
+
   const handleTimeframeChange = (newTimeframe: '1D' | '5D' | '30D' | '1Y') => {
     setTimeframe(newTimeframe);
     onTimeframeChange(newTimeframe);
   };
+
+  const performance = calculatePerformance();
+  const isPositive = performance >= 0;
   
   return (
     <div className="space-y-2">
