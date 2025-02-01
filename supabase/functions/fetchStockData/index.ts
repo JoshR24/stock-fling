@@ -92,7 +92,7 @@ serve(async (req) => {
 
     // Get both daily and intraday data
     const [dailyResponse, intradayResponse] = await Promise.all([
-      fetch(`https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=${symbol}&apikey=${Deno.env.get('ALPHAVANTAGE_API_KEY')}`),
+      fetch(`https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=${symbol}&outputsize=full&apikey=${Deno.env.get('ALPHAVANTAGE_API_KEY')}`),
       fetch(`https://www.alphavantage.co/query?function=TIME_SERIES_INTRADAY&symbol=${symbol}&interval=5min&apikey=${Deno.env.get('ALPHAVANTAGE_API_KEY')}`)
     ]);
 
@@ -119,9 +119,9 @@ serve(async (req) => {
         const intradayTimeSeriesData = intradayData['Time Series (5min)'];
         
         if (dailyTimeSeriesData && intradayTimeSeriesData) {
-          // Get last 30 days of daily data
+          // Get last year of daily data
           const dailyPoints = Object.entries(dailyTimeSeriesData)
-            .slice(0, 30)
+            .slice(0, 365)  // Get up to 365 days of data
             .map(([date, values]: [string, any]) => ({
               date: new Date(date).toLocaleDateString(),
               value: parseFloat(values['4. close'])

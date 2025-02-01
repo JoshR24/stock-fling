@@ -8,10 +8,9 @@ interface StockChartProps {
 }
 
 export const StockChart = ({ stock }: StockChartProps) => {
-  const [timeframe, setTimeframe] = useState<'1D' | '5D' | '30D'>('30D');
+  const [timeframe, setTimeframe] = useState<'1D' | '5D' | '30D' | '1Y'>('30D');
   const isPositive = stock.change >= 0;
   
-  // Add error handling for empty chart data
   if (!stock.chartData || stock.chartData.length === 0) {
     return (
       <div className="h-[150px] flex items-center justify-center text-muted-foreground">
@@ -20,13 +19,16 @@ export const StockChart = ({ stock }: StockChartProps) => {
     );
   }
 
-  // Filter data based on selected timeframe
   const getFilteredData = () => {
     switch (timeframe) {
       case '1D':
         return stock.chartData.slice(-1);
       case '5D':
         return stock.chartData.slice(-5);
+      case '30D':
+        return stock.chartData.slice(-30);
+      case '1Y':
+        return stock.chartData;
       default:
         return stock.chartData;
     }
@@ -58,6 +60,14 @@ export const StockChart = ({ stock }: StockChartProps) => {
           className="h-6 px-2"
         >
           30D
+        </Button>
+        <Button 
+          variant={timeframe === '1Y' ? "secondary" : "ghost"} 
+          size="sm"
+          onClick={() => setTimeframe('1Y')}
+          className="h-6 px-2"
+        >
+          1Y
         </Button>
       </div>
       
