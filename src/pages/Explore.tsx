@@ -168,8 +168,8 @@ const Explore = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background p-4 pb-16">
-      <div className="max-w-md mx-auto">
+    <div className="min-h-screen bg-background pb-16">
+      <div className="max-w-md mx-auto p-4">
         <div className="flex items-center gap-2 mb-4">
           {(stock || aiRecommendations.length > 0) && (
             <Button
@@ -298,7 +298,7 @@ const Explore = () => {
           )}
 
           {!stock && !aiRecommendations.length && (
-            <ScrollArea className="h-[calc(100vh-24rem)]">
+            <div className="mt-4">
               <Card className="p-4">
                 <h3 className="font-semibold text-lg mb-4">Recent Market News</h3>
                 {recentNews ? (
@@ -309,7 +309,7 @@ const Explore = () => {
                   </p>
                 )}
               </Card>
-            </ScrollArea>
+            </div>
           )}
         </div>
       </div>
