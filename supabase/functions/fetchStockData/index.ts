@@ -5,7 +5,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-// Simple in-memory cache (will reset when function cold starts)
 const cache = new Map();
 const CACHE_DURATION = 1000 * 60 * 60; // 1 hour
 
@@ -26,7 +25,6 @@ interface StockData {
   }[];
 }
 
-// Helper function to get cached data
 const getCachedData = (key: string) => {
   const cached = cache.get(key);
   if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
@@ -36,7 +34,6 @@ const getCachedData = (key: string) => {
   return null;
 };
 
-// Helper function to set cached data
 const setCachedData = (key: string, data: any) => {
   cache.set(key, {
     data,
@@ -44,7 +41,6 @@ const setCachedData = (key: string, data: any) => {
   });
 };
 
-// Helper function to add delay between API calls
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 serve(async (req) => {
@@ -71,7 +67,6 @@ serve(async (req) => {
 
     console.log(`Processing request for symbol: ${symbol}`);
 
-    // Check cache first
     const cachedData = getCachedData(symbol);
     if (cachedData) {
       return new Response(JSON.stringify(cachedData), {
@@ -79,7 +74,6 @@ serve(async (req) => {
       });
     }
 
-    // Get real-time quote and company profile from Finnhub
     const [quoteResponse, profileResponse] = await Promise.all([
       fetch(`https://finnhub.io/api/v1/quote?symbol=${symbol}&token=${Deno.env.get('FINNHUB_API_KEY')}`),
       fetch(`https://finnhub.io/api/v1/stock/profile2?symbol=${symbol}&token=${Deno.env.get('FINNHUB_API_KEY')}`)
@@ -94,40 +88,58 @@ serve(async (req) => {
       profileResponse.json()
     ]);
 
-    // Add a small delay before making Alpha Vantage request to avoid rate limits
     await delay(1000);
 
-    // Get historical data from Alpha Vantage
-    const chartResponse = await fetch(
-      `https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=${symbol}&apikey=${Deno.env.get('ALPHAVANTAGE_API_KEY')}`
-    );
+    // Get both daily and intraday data
+    const [dailyResponse, intradayResponse] = await Promise.all([
+      fetch(`https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=${symbol}&apikey=${Deno.env.get('ALPHAVANTAGE_API_KEY')}`),
+      fetch(`https://www.alphavantage.co/query?function=TIME_SERIES_INTRADAY&symbol=${symbol}&interval=5min&apikey=${Deno.env.get('ALPHAVANTAGE_API_KEY')}`)
+    ]);
 
     let chartPoints = [];
     let chartError = null;
 
-    if (!chartResponse.ok) {
-      console.error(`Failed to fetch chart data for ${symbol}: ${chartResponse.statusText}`);
+    if (!dailyResponse.ok || !intradayResponse.ok) {
+      console.error(`Failed to fetch chart data for ${symbol}`);
       chartError = 'Failed to fetch chart data';
     } else {
-      const chartData = await chartResponse.json();
+      const [dailyData, intradayData] = await Promise.all([
+        dailyResponse.json(),
+        intradayResponse.json()
+      ]);
       
-      if (chartData.hasOwnProperty('Note')) {
-        console.warn(`Alpha Vantage rate limit hit for ${symbol}: ${chartData.Note}`);
+      if (dailyData.hasOwnProperty('Note') || intradayData.hasOwnProperty('Note')) {
+        console.warn(`Alpha Vantage rate limit hit for ${symbol}`);
         chartError = 'API rate limit exceeded. Please try again in a minute.';
-      } else if (chartData.hasOwnProperty('Error Message')) {
-        console.error(`Alpha Vantage error for ${symbol}: ${chartData['Error Message']}`);
-        chartError = chartData['Error Message'];
+      } else if (dailyData.hasOwnProperty('Error Message') || intradayData.hasOwnProperty('Error Message')) {
+        console.error(`Alpha Vantage error for ${symbol}`);
+        chartError = dailyData['Error Message'] || intradayData['Error Message'];
       } else {
-        const timeSeriesData = chartData['Time Series (Daily)'];
+        const dailyTimeSeriesData = dailyData['Time Series (Daily)'];
+        const intradayTimeSeriesData = intradayData['Time Series (5min)'];
         
-        if (timeSeriesData) {
-          chartPoints = Object.entries(timeSeriesData)
+        if (dailyTimeSeriesData && intradayTimeSeriesData) {
+          // Get last 30 days of daily data
+          const dailyPoints = Object.entries(dailyTimeSeriesData)
             .slice(0, 30)
             .map(([date, values]: [string, any]) => ({
               date: new Date(date).toLocaleDateString(),
               value: parseFloat(values['4. close'])
             }))
             .reverse();
+
+          // Get today's intraday data
+          const today = new Date().toISOString().split('T')[0];
+          const intradayPoints = Object.entries(intradayTimeSeriesData)
+            .filter(([timestamp]) => timestamp.startsWith(today))
+            .map(([timestamp, values]: [string, any]) => ({
+              date: new Date(timestamp).toLocaleTimeString(),
+              value: parseFloat(values['4. close'])
+            }))
+            .reverse();
+
+          // Combine both datasets
+          chartPoints = [...intradayPoints, ...dailyPoints];
         } else {
           console.warn(`No time series data found for ${symbol}`);
           chartError = 'No historical data available';
@@ -135,13 +147,8 @@ serve(async (req) => {
       }
     }
 
-    // Get company news
-    const currentDate = new Date();
-    const pastDate = new Date();
-    pastDate.setDate(pastDate.getDate() - 7);
-
     const newsResponse = await fetch(
-      `https://finnhub.io/api/v1/company-news?symbol=${symbol}&from=${pastDate.toISOString().split('T')[0]}&to=${currentDate.toISOString().split('T')[0]}&token=${Deno.env.get('FINNHUB_API_KEY')}`
+      `https://finnhub.io/api/v1/company-news?symbol=${symbol}&from=${new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]}&to=${new Date().toISOString().split('T')[0]}&token=${Deno.env.get('FINNHUB_API_KEY')}`
     );
 
     let newsData = [];
@@ -151,9 +158,8 @@ serve(async (req) => {
       console.warn(`Failed to fetch news for ${symbol}`);
     }
 
-    // Create a focused description about what the company does
     const description = profileData.description 
-      ? profileData.description.split('.')[0] + '.' // Take just the first sentence
+      ? profileData.description.split('.')[0] + '.'
       : `${profileData.name || symbol} is a publicly traded company.`;
 
     const stockData: StockData = {
@@ -175,7 +181,6 @@ serve(async (req) => {
         }))
     };
 
-    // Cache the successful response
     setCachedData(symbol, stockData);
 
     console.log(`Successfully processed data for ${symbol}. Chart points: ${chartPoints.length}`);
