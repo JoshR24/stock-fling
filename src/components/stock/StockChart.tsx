@@ -107,7 +107,7 @@ export const StockChart = ({ stock }: StockChartProps) => {
               }}
             />
             <Area
-              type="monotone"
+              type="linear"
               dataKey="value"
               stroke={isPositive ? "rgb(34, 197, 94)" : "rgb(239, 68, 68)"}
               fill={`url(#gradient-${stock.id})`}
