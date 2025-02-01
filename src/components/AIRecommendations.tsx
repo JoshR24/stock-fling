@@ -77,10 +77,10 @@ export const AIRecommendations = () => {
         duration: 1000,
       });
       
-      // Automatically close the stock detail view after a very short delay
+      // Automatically close the stock detail view after a short delay
       setTimeout(() => {
         setSelectedStock(null);
-      }, 100);
+      }, 300);
       
     } catch (error) {
       console.error('Error adding to portfolio:', error);
@@ -99,7 +99,7 @@ export const AIRecommendations = () => {
       // Close the detail view for left swipes or when no action is taken
       setTimeout(() => {
         setSelectedStock(null);
-      }, 100);
+      }, 300);
     }
   };
 
