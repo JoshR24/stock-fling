@@ -20,31 +20,38 @@ export const PortfolioPositions = ({ stocks }: PortfolioPositionsProps) => {
   const { data: positions = [], isLoading, error } = useQuery({
     queryKey: ['positions'],
     queryFn: async () => {
+      // Log authentication state
       const { data: { user }, error: userError } = await supabase.auth.getUser();
+      console.log('Auth check - Current user:', user);
+      
       if (userError) {
-        console.error('User error:', userError);
+        console.error('Authentication error:', userError);
         throw userError;
       }
-      console.log('Current user:', user);
 
       if (!user) {
-        console.error('No user found');
+        console.error('No authenticated user found');
         throw new Error('User not authenticated');
       }
 
+      console.log('Fetching positions for user:', user.id);
+
+      // Fetch positions with detailed logging
       const { data, error: positionsError } = await supabase
         .from('paper_trading_positions')
-        .select('symbol, quantity, average_price')
+        .select('*')
         .eq('user_id', user.id);
 
       if (positionsError) {
-        console.error('Positions error:', positionsError);
+        console.error('Positions fetch error:', positionsError);
         throw positionsError;
       }
 
       console.log('Fetched positions:', data);
       return data as Position[] || [];
-    }
+    },
+    retry: 1, // Retry once if the query fails
+    refetchOnWindowFocus: true // Refetch when window regains focus
   });
 
   // Log any query errors
