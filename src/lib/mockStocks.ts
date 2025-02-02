@@ -51,10 +51,10 @@ const stockUniverse = [
 // Keep track of stocks that have been shown to the user
 let shownStocks = new Set<string>();
 
-// Reset shown stocks if we've shown too many
+// Reset shown stocks if we've shown all available stocks
 const resetShownStocksIfNeeded = () => {
-  if (shownStocks.size >= stockUniverse.length - 10) {
-    console.log('Resetting shown stocks history');
+  if (shownStocks.size >= stockUniverse.length) {
+    console.log('Resetting shown stocks history - all stocks have been shown');
     shownStocks.clear();
   }
 };
@@ -63,26 +63,35 @@ export const generateStockBatch = async (count: number, requiredSymbols: string[
   console.log('Generating stock batch with required symbols:', requiredSymbols);
   resetShownStocksIfNeeded();
   
-  // First, handle required symbols
-  const requiredStocks = requiredSymbols.filter(symbol => stockUniverse.includes(symbol));
+  // First, handle required symbols that haven't been shown yet
+  const unseenRequiredStocks = requiredSymbols.filter(symbol => 
+    stockUniverse.includes(symbol) && !shownStocks.has(symbol)
+  );
   
-  // Then, get additional random stocks if needed
-  const remainingCount = count - requiredStocks.length;
+  // Get available stocks (not shown and not required)
   const availableStocks = stockUniverse.filter(symbol => 
     !shownStocks.has(symbol) && !requiredSymbols.includes(symbol)
   );
   
+  // Shuffle available stocks
+  const shuffledStocks = availableStocks.sort(() => Math.random() - 0.5);
+  
+  // Calculate how many additional stocks we need
+  const remainingCount = count - unseenRequiredStocks.length;
+  
+  // Get additional random stocks
   const additionalStocks = remainingCount > 0 
-    ? availableStocks.sort(() => Math.random() - 0.5).slice(0, remainingCount)
+    ? shuffledStocks.slice(0, remainingCount)
     : [];
   
-  const selectedStocks = [...requiredStocks, ...additionalStocks];
+  const selectedStocks = [...unseenRequiredStocks, ...additionalStocks];
   
   // Add selected stocks to shown stocks set
   selectedStocks.forEach(symbol => shownStocks.add(symbol));
   
   console.log('Selected stocks:', selectedStocks);
   console.log('Total shown stocks:', shownStocks.size);
+  console.log('Remaining unseen stocks:', stockUniverse.length - shownStocks.size);
   
   const stockPromises = selectedStocks.map(async (symbol) => {
     try {
