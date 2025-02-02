@@ -63,31 +63,31 @@ export const generateStockBatch = async (count: number, requiredSymbols: string[
   console.log('Generating stock batch with required symbols:', requiredSymbols);
   resetShownStocksIfNeeded();
   
-  // First, handle required symbols that haven't been shown yet
-  const unseenRequiredStocks = requiredSymbols.filter(symbol => 
-    stockUniverse.includes(symbol) && !shownStocks.has(symbol)
+  // Always include required symbols (portfolio stocks)
+  const portfolioStocks = requiredSymbols.filter(symbol => 
+    stockUniverse.includes(symbol)
   );
   
-  // Get available stocks (not shown and not required)
+  // Get available stocks (not required)
   const availableStocks = stockUniverse.filter(symbol => 
-    !shownStocks.has(symbol) && !requiredSymbols.includes(symbol)
+    !requiredSymbols.includes(symbol)
   );
   
   // Shuffle available stocks
   const shuffledStocks = availableStocks.sort(() => Math.random() - 0.5);
   
   // Calculate how many additional stocks we need
-  const remainingCount = count - unseenRequiredStocks.length;
+  const remainingCount = count - portfolioStocks.length;
   
   // Get additional random stocks
   const additionalStocks = remainingCount > 0 
     ? shuffledStocks.slice(0, remainingCount)
     : [];
   
-  const selectedStocks = [...unseenRequiredStocks, ...additionalStocks];
+  const selectedStocks = [...portfolioStocks, ...additionalStocks];
   
-  // Add selected stocks to shown stocks set
-  selectedStocks.forEach(symbol => shownStocks.add(symbol));
+  // Add non-portfolio stocks to shown stocks set
+  additionalStocks.forEach(symbol => shownStocks.add(symbol));
   
   console.log('Selected stocks:', selectedStocks);
   console.log('Total shown stocks:', shownStocks.size);
