@@ -35,7 +35,7 @@ export const generateStockBatch = async (): Promise<Stock[]> => {
       .from('stock_data_cache')
       .select('*')
       .not('symbol', 'in', `(${Array.from(positionSymbols).map(s => `'${s}'`).join(',')})`)
-      .order('random()'); // This randomizes the order at the database level
+      .order(supabase.raw('random()')); // This randomizes the order at the database level
 
     if (error) {
       console.error('Error fetching stocks:', error);
