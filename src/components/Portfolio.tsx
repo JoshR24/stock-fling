@@ -9,6 +9,7 @@ import { Input } from "./ui/input";
 import { DollarSign, Minus, Plus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { PortfolioPositions } from "./positions/PortfolioPositions";
 
 interface PortfolioProps {
   stocks: Stock[];
@@ -176,15 +177,7 @@ export const Portfolio = ({ stocks }: PortfolioProps) => {
   return (
     <ScrollArea className="h-full">
       <div className="space-y-4 p-4">
-        <div className="flex items-center gap-4 mb-6">
-          <Card className="p-4 flex-1">
-            <div className="flex items-center gap-2 text-muted-foreground mb-2">
-              <DollarSign className="h-4 w-4" />
-              <span>Available Balance</span>
-            </div>
-            <span className="text-2xl font-bold">$100,000.00</span>
-          </Card>
-        </div>
+        <PortfolioPositions stocks={stocks} />
 
         {selectedStock && (
           <Card className="p-4 mb-4">
