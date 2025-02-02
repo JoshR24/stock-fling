@@ -60,6 +60,14 @@ export const PortfolioPositions = ({ stocks }: PortfolioPositionsProps) => {
     setTotalGainLoss(totalGL);
   }, [positions, stocks]);
 
+  if (positions.length === 0) {
+    return (
+      <Card className="p-4">
+        <p className="text-center text-muted-foreground">No positions found. Start trading to see your portfolio here!</p>
+      </Card>
+    );
+  }
+
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-4">
