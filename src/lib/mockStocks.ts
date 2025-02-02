@@ -21,25 +21,31 @@ export interface Stock {
 // Extended list of popular stocks across different sectors
 const stockUniverse = [
   // Technology
-  'AAPL', 'GOOGL', 'MSFT', 'META', 'NVDA', 'AMD', 'INTC', 'TSM', 'CSCO', 'ORCL',
+  'AAPL', 'GOOGL', 'MSFT', 'META', 'NVDA', 'AMD', 'INTC', 'TSM', 'CSCO', 'ORCL', 'IBM', 'ADBE', 'CRM', 'QCOM', 'TXN',
   // E-commerce & Internet
-  'AMZN', 'BABA', 'SHOP', 'ETSY', 'EBAY', 'PYPL', 'SQ', 'ABNB',
+  'AMZN', 'BABA', 'SHOP', 'ETSY', 'EBAY', 'PYPL', 'SQ', 'ABNB', 'MELI', 'CHWY', 'W', 'PINS', 'SNAP', 'TWLO',
   // Electric Vehicles & Auto
-  'TSLA', 'F', 'GM', 'TM', 'RIVN', 'NIO', 'LCID',
+  'TSLA', 'F', 'GM', 'TM', 'RIVN', 'NIO', 'LCID', 'LI', 'XPEV', 'FSR', 'NKLA', 'HMC',
   // Financial Services
-  'JPM', 'BAC', 'WFC', 'GS', 'MS', 'V', 'MA', 'AXP',
+  'JPM', 'BAC', 'WFC', 'GS', 'MS', 'V', 'MA', 'AXP', 'C', 'BLK', 'SCHW', 'USB', 'PNC', 'COF',
   // Healthcare
-  'JNJ', 'PFE', 'MRNA', 'ABBV', 'UNH', 'CVS', 'WBA',
+  'JNJ', 'PFE', 'MRNA', 'ABBV', 'UNH', 'CVS', 'WBA', 'LLY', 'TMO', 'DHR', 'BMY', 'AMGN', 'GILD', 'REGN',
   // Retail
-  'WMT', 'TGT', 'COST', 'HD', 'LOW', 'DG', 'DLTR',
+  'WMT', 'TGT', 'COST', 'HD', 'LOW', 'DG', 'DLTR', 'KR', 'ULTA', 'BBY', 'DKS', 'M', 'GPS',
   // Entertainment & Media
-  'NFLX', 'DIS', 'CMCSA', 'PARA', 'WBD', 'SPOT',
+  'NFLX', 'DIS', 'CMCSA', 'PARA', 'WBD', 'SPOT', 'ROKU', 'EA', 'TTWO', 'ATVI', 'LYV',
   // Telecommunications
-  'VZ', 'T', 'TMUS',
+  'VZ', 'T', 'TMUS', 'ERIC', 'NOK',
   // Energy
-  'XOM', 'CVX', 'COP', 'BP', 'SHEL',
+  'XOM', 'CVX', 'COP', 'BP', 'SHEL', 'SLB', 'EOG', 'PXD', 'MPC', 'PSX', 'VLO',
   // Consumer Goods
-  'KO', 'PEP', 'PG', 'MCD', 'SBUX', 'NKE'
+  'KO', 'PEP', 'PG', 'MCD', 'SBUX', 'NKE', 'YUM', 'EL', 'CL', 'KMB', 'HSY', 'K', 'GIS',
+  // Industrial & Manufacturing
+  'CAT', 'DE', 'BA', 'LMT', 'RTX', 'HON', 'MMM', 'GE', 'EMR', 'ETN', 'CMI',
+  // Real Estate
+  'AMT', 'PLD', 'CCI', 'EQIX', 'DLR', 'O', 'SPG', 'WELL', 'AVB',
+  // Materials
+  'LIN', 'APD', 'ECL', 'DD', 'NEM', 'FCX', 'DOW', 'NUE'
 ];
 
 // Keep track of stocks that have been shown to the user
