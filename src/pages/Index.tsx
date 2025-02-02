@@ -6,6 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
 import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
+import { useQuery } from "@tanstack/react-query";
 
 interface IndexProps {
   showPortfolio?: boolean;
@@ -13,10 +14,34 @@ interface IndexProps {
 
 const Index = ({ showPortfolio: initialShowPortfolio = false }: IndexProps) => {
   const [stocks, setStocks] = useState<Stock[]>([]);
-  const [portfolio, setPortfolio] = useState<Stock[]>([]);
   const [showPortfolio, setShowPortfolio] = useState(initialShowPortfolio);
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
+
+  // Fetch portfolio data using React Query
+  const { data: portfolio = [] } = useQuery({
+    queryKey: ['portfolio'],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return [];
+
+      const { data, error } = await supabase
+        .from('portfolios')
+        .select('symbol')
+        .eq('user_id', user.id);
+
+      if (error) {
+        console.error('Error fetching portfolio:', error);
+        throw error;
+      }
+
+      // Map portfolio symbols to stock objects
+      return stocks.filter(stock => 
+        data?.some(item => item.symbol === stock.symbol)
+      );
+    },
+    enabled: stocks.length > 0, // Only run query when stocks are loaded
+  });
 
   useEffect(() => {
     setShowPortfolio(initialShowPortfolio);
@@ -49,14 +74,6 @@ const Index = ({ showPortfolio: initialShowPortfolio = false }: IndexProps) => {
     setStocks((prev) => {
       const [current, ...rest] = prev;
       if (direction === "right" && current) {
-        // Add to local state
-        setPortfolio((portfolio) => {
-          if (!portfolio.find(s => s.symbol === current.symbol)) {
-            return [...portfolio, current];
-          }
-          return portfolio;
-        });
-
         // Save to Supabase
         const saveToPortfolio = async () => {
           try {
