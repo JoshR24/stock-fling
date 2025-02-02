@@ -25,7 +25,6 @@ const Index = ({ showPortfolio: initialShowPortfolio = false }: IndexProps) => {
       });
 
       if (error) throw error;
-
       console.log('Cache initialization response:', data);
     } catch (error) {
       console.error('Error initializing cache:', error);
@@ -69,21 +68,22 @@ const Index = ({ showPortfolio: initialShowPortfolio = false }: IndexProps) => {
   // Load initial stocks
   const loadStocks = async () => {
     try {
-      // Get symbols from positions
-      const requiredSymbols = positionsData?.map(position => position.symbol) || [];
-      console.log('Required symbols from positions:', requiredSymbols);
+      // Get all portfolio symbols
+      const portfolioSymbols = positionsData?.map(position => position.symbol) || [];
+      console.log('Portfolio symbols:', portfolioSymbols);
 
-      // Generate a larger batch of stocks, including some (not all) required ones
-      // We'll include up to 2 portfolio stocks in each batch to maintain variety
-      const portfolioSymbolsToInclude = requiredSymbols
-        .sort(() => Math.random() - 0.5)
-        .slice(0, 2);
-      
-      const newStocks = await generateStockBatch(5, portfolioSymbolsToInclude);
-      setStocks(prev => {
-        const existingSymbols = new Set(prev.map(s => s.symbol));
-        return [...prev, ...newStocks.filter(s => !existingSymbols.has(s.symbol))];
-      });
+      // For portfolio view, we need all portfolio stocks
+      if (showPortfolio) {
+        const newStocks = await generateStockBatch(portfolioSymbols.length, portfolioSymbols);
+        setStocks(newStocks);
+      } else {
+        // For swiping view, we'll get a mix of portfolio and other stocks
+        const newStocks = await generateStockBatch(5, portfolioSymbols);
+        setStocks(prev => {
+          const existingSymbols = new Set(prev.map(s => s.symbol));
+          return [...prev, ...newStocks.filter(s => !existingSymbols.has(s.symbol))];
+        });
+      }
     } catch (error) {
       console.error('Error loading stocks:', error);
       toast({
@@ -97,7 +97,7 @@ const Index = ({ showPortfolio: initialShowPortfolio = false }: IndexProps) => {
   // Load initial stocks on mount or when positions change
   useEffect(() => {
     loadStocks();
-  }, [positionsData]);
+  }, [positionsData, showPortfolio]);
 
   // Map positions symbols to stock objects
   const portfolioStocks = stocks.filter(stock => 
