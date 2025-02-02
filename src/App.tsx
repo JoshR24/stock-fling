@@ -11,30 +11,61 @@ import Auth from "./pages/Auth";
 import BottomNav from "./components/BottomNav";
 import { useEffect, useState } from "react";
 import { supabase } from "./integrations/supabase/client";
+import { useToast } from "./hooks/use-toast";
 
 const queryClient = new QueryClient();
 
 const App = () => {
   const [session, setSession] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
 
   useEffect(() => {
+    // Initialize session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setLoading(false);
     });
 
+    // Set up auth state listener
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (_event === 'SIGNED_OUT') {
+        // Clear any cached data when user signs out
+        queryClient.clear();
+      }
+      
+      if (_event === 'TOKEN_REFRESHED') {
+        toast({
+          title: "Session Refreshed",
+          description: "Your session has been updated.",
+        });
+      }
+
+      if (_event === 'USER_UPDATED') {
+        toast({
+          title: "Profile Updated",
+          description: "Your profile has been updated successfully.",
+        });
+      }
+
       setSession(session);
     });
 
-    return () => subscription.unsubscribe();
+    // Cleanup subscription
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
+  // Handle loading state
   if (loading) {
-    return null;
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
   }
 
   return (
