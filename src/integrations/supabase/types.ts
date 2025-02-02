@@ -335,6 +335,24 @@ export type Database = {
         }
         Relationships: []
       }
+      stock_data_cache: {
+        Row: {
+          data: Json
+          last_updated: string
+          symbol: string
+        }
+        Insert: {
+          data: Json
+          last_updated?: string
+          symbol: string
+        }
+        Update: {
+          data?: Json
+          last_updated?: string
+          symbol?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
