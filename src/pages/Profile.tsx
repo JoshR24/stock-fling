@@ -7,6 +7,7 @@ import AccountSettings from "@/components/profile/AccountSettings";
 import PreferencesSettings from "@/components/profile/PreferencesSettings";
 import LegalSettings from "@/components/profile/LegalSettings";
 import { Support } from "@/components/portfolio/Support";
+import { LogOut } from "lucide-react";
 
 const Profile = () => {
   const navigate = useNavigate();
@@ -42,19 +43,20 @@ const Profile = () => {
         <Card className="p-4">
           <LegalSettings />
         </Card>
-
-        <Card className="p-4">
-          <Support supportEmail="support@stockfling.com" />
-        </Card>
         
         <Card className="p-4">
           <Button 
             variant="destructive" 
-            className="w-full"
+            className="w-full flex items-center gap-2"
             onClick={handleSignOut}
           >
+            <LogOut className="h-4 w-4" />
             Sign Out
           </Button>
+        </Card>
+
+        <Card className="p-4">
+          <Support supportEmail="support@stockfling.com" />
         </Card>
       </div>
     </div>

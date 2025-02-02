@@ -86,7 +86,7 @@ export const PortfolioPositions = ({ stocks }: PortfolioPositionsProps) => {
             ) : (
               <TrendingDown className="h-4 w-4 text-red-500" />
             )}
-            <span>Total G/L</span>
+            <span>Total Gain/Loss</span>
           </div>
           <span className={`text-lg font-bold ${totalGainLoss >= 0 ? 'text-green-500' : 'text-red-500'}`}>
             ${Math.abs(totalGainLoss).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -102,7 +102,7 @@ export const PortfolioPositions = ({ stocks }: PortfolioPositionsProps) => {
                 <TableHead className="text-xs">Symbol</TableHead>
                 <TableHead className="text-xs text-right">Qty</TableHead>
                 <TableHead className="text-xs text-right">Price</TableHead>
-                <TableHead className="text-xs text-right">G/L</TableHead>
+                <TableHead className="text-xs text-right">Gain/Loss</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
