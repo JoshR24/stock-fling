@@ -19,7 +19,7 @@ const Index = ({ showPortfolio: initialShowPortfolio = false }: IndexProps) => {
   const { toast } = useToast();
 
   // Fetch portfolio data using React Query
-  const { data: portfolio = [] } = useQuery({
+  const { data: portfolioData, isLoading: isPortfolioLoading } = useQuery({
     queryKey: ['portfolio'],
     queryFn: async () => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -35,13 +35,15 @@ const Index = ({ showPortfolio: initialShowPortfolio = false }: IndexProps) => {
         throw error;
       }
 
-      // Map portfolio symbols to stock objects
-      return stocks.filter(stock => 
-        data?.some(item => item.symbol === stock.symbol)
-      );
+      console.log('Portfolio data from DB:', data);
+      return data || [];
     },
-    enabled: stocks.length > 0, // Only run query when stocks are loaded
   });
+
+  // Map portfolio symbols to stock objects
+  const portfolioStocks = stocks.filter(stock => 
+    portfolioData?.some(item => item.symbol === stock.symbol)
+  );
 
   useEffect(() => {
     setShowPortfolio(initialShowPortfolio);
@@ -155,7 +157,7 @@ const Index = ({ showPortfolio: initialShowPortfolio = false }: IndexProps) => {
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
               className="h-[calc(100%-4rem)]"
             >
-              <Portfolio stocks={portfolio} />
+              <Portfolio stocks={portfolioStocks} />
             </motion.div>
           ) : (
             <motion.div
