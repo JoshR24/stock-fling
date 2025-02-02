@@ -16,48 +16,48 @@ export const Portfolio = ({ stocks }: PortfolioProps) => {
   const [balance, setBalance] = useState<number>(0);
   const [portfolioStocks, setPortfolioStocks] = useState<Stock[]>([]);
 
+  const fetchPortfolioAndBalance = async () => {
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    if (userError || !user) {
+      console.error('Error fetching user:', userError);
+      return;
+    }
+
+    // Fetch balance
+    const { data: balanceData, error: balanceError } = await supabase
+      .from('paper_trading_balances')
+      .select('balance')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (balanceError) {
+      console.error('Error fetching balance:', balanceError);
+      return;
+    }
+
+    if (balanceData) {
+      setBalance(balanceData.balance);
+    }
+
+    // Fetch portfolio
+    const { data: portfolioData, error: portfolioError } = await supabase
+      .from('portfolios')
+      .select('symbol')
+      .eq('user_id', user.id);
+
+    if (portfolioError) {
+      console.error('Error fetching portfolio:', portfolioError);
+      return;
+    }
+
+    // Map portfolio symbols to actual stock data
+    const portfolioSymbols = new Set(portfolioData.map(item => item.symbol));
+    const portfolioStocks = stocks.filter(stock => portfolioSymbols.has(stock.symbol));
+    setPortfolioStocks(portfolioStocks);
+  };
+
   // Fetch user's portfolio and balance
   useEffect(() => {
-    const fetchPortfolioAndBalance = async () => {
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      if (userError || !user) {
-        console.error('Error fetching user:', userError);
-        return;
-      }
-
-      // Fetch balance
-      const { data: balanceData, error: balanceError } = await supabase
-        .from('paper_trading_balances')
-        .select('balance')
-        .eq('user_id', user.id)
-        .maybeSingle();
-
-      if (balanceError) {
-        console.error('Error fetching balance:', balanceError);
-        return;
-      }
-
-      if (balanceData) {
-        setBalance(balanceData.balance);
-      }
-
-      // Fetch portfolio
-      const { data: portfolioData, error: portfolioError } = await supabase
-        .from('portfolios')
-        .select('symbol')
-        .eq('user_id', user.id);
-
-      if (portfolioError) {
-        console.error('Error fetching portfolio:', portfolioError);
-        return;
-      }
-
-      // Map portfolio symbols to actual stock data
-      const portfolioSymbols = new Set(portfolioData.map(item => item.symbol));
-      const portfolioStocks = stocks.filter(stock => portfolioSymbols.has(stock.symbol));
-      setPortfolioStocks(portfolioStocks);
-    };
-
     fetchPortfolioAndBalance();
   }, [stocks]);
 
