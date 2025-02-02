@@ -47,13 +47,20 @@ const Index = ({ showPortfolio: initialShowPortfolio = false }: IndexProps) => {
     queryFn: async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return [];
+
+      console.log('Fetching positions for user:', user.id);
       
       const { data, error } = await supabase
         .from('paper_trading_positions')
         .select('*')
         .eq('user_id', user.id);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching positions:', error);
+        throw error;
+      }
+
+      console.log('Fetched positions:', data);
       return data || [];
     },
   });
@@ -61,14 +68,17 @@ const Index = ({ showPortfolio: initialShowPortfolio = false }: IndexProps) => {
   // Load initial stocks
   const loadStocks = async () => {
     try {
+      // Get all portfolio symbols
+      const portfolioSymbols = positionsData?.map(position => position.symbol) || [];
+      console.log('Portfolio symbols:', portfolioSymbols);
+
+      // For portfolio view, we need all portfolio stocks
       if (showPortfolio) {
-        // For portfolio view, get all portfolio stocks
-        const portfolioSymbols = positionsData?.map(position => position.symbol) || [];
-        const newStocks = await generateStockBatch(portfolioSymbols.length);
+        const newStocks = await generateStockBatch(portfolioSymbols.length, portfolioSymbols);
         setStocks(newStocks);
       } else {
-        // For swiping view, get random non-portfolio stocks
-        const newStocks = await generateStockBatch(5);
+        // For swiping view, we'll get a mix of portfolio and other stocks
+        const newStocks = await generateStockBatch(5, portfolioSymbols);
         setStocks(prev => {
           const existingSymbols = new Set(prev.map(s => s.symbol));
           return [...prev, ...newStocks.filter(s => !existingSymbols.has(s.symbol))];
@@ -94,6 +104,9 @@ const Index = ({ showPortfolio: initialShowPortfolio = false }: IndexProps) => {
     positionsData?.some(position => position.symbol === stock.symbol)
   );
 
+  console.log('Current stocks:', stocks);
+  console.log('Portfolio stocks:', portfolioStocks);
+
   useEffect(() => {
     setShowPortfolio(initialShowPortfolio);
   }, [initialShowPortfolio]);
@@ -102,6 +115,7 @@ const Index = ({ showPortfolio: initialShowPortfolio = false }: IndexProps) => {
     setStocks((prev) => {
       const [current, ...rest] = prev;
       if (direction === "right" && current) {
+        // Save to Supabase
         const saveToPortfolio = async () => {
           try {
             const { data: { user } } = await supabase.auth.getUser();
