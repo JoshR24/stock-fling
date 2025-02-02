@@ -57,8 +57,6 @@ export const PortfolioPositions = ({ stocks }: PortfolioPositionsProps) => {
       }
     });
 
-    console.log('Calculated total value:', totalVal);
-    console.log('Calculated total gain/loss:', totalGL);
     setTotalValue(totalVal);
     setTotalGainLoss(totalGL);
   }, [positions, stocks]);
