@@ -11,7 +11,7 @@ const supabase = createClient(
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
 )
 
-const CACHE_DURATION = 1000 * 60 * 60 * 24; // 24 hours
+const CACHE_DURATION = 1000 * 60 * 60; // 1 hour cache
 
 async function getStockDataFromCache(symbol: string) {
   const { data, error } = await supabase
@@ -26,11 +26,10 @@ async function getStockDataFromCache(symbol: string) {
   }
 
   if (data && Date.now() - new Date(data.last_updated).getTime() < CACHE_DURATION) {
-    console.log(`Using cached data for ${symbol} (cache age: ${Math.round((Date.now() - new Date(data.last_updated).getTime()) / (1000 * 60 * 60))} hours)`);
+    console.log(`Using cached data for ${symbol}`);
     return data.data;
   }
 
-  console.log(`Cache expired for ${symbol}, last updated: ${data?.last_updated}`);
   return null;
 }
 
@@ -48,102 +47,86 @@ async function updateStockDataCache(symbol: string, data: any) {
   }
 }
 
-async function fetchFreshStockData(symbol: string) {
-  console.log(`Fetching fresh data for ${symbol}`);
+async function fetchPolygonData(symbol: string) {
+  console.log(`Fetching fresh data from Polygon for ${symbol}`);
   
-  const [quoteResponse, profileResponse] = await Promise.all([
-    fetch(`https://finnhub.io/api/v1/quote?symbol=${symbol}&token=${Deno.env.get('FINNHUB_API_KEY')}`),
-    fetch(`https://finnhub.io/api/v1/stock/profile2?symbol=${symbol}&token=${Deno.env.get('FINNHUB_API_KEY')}`)
-  ]);
-
-  if (!quoteResponse.ok || !profileResponse.ok) {
-    throw new Error(`Failed to fetch data for ${symbol}`);
+  const POLYGON_API_KEY = Deno.env.get('POLYGON_API_KEY');
+  if (!POLYGON_API_KEY) {
+    throw new Error('Polygon API key not configured');
   }
 
-  const [quoteData, profileData] = await Promise.all([
-    quoteResponse.json(),
-    profileResponse.json()
-  ]);
+  // Fetch current price and daily change
+  const quoteResponse = await fetch(
+    `https://api.polygon.io/v2/aggs/ticker/${symbol}/prev?adjusted=true&apiKey=${POLYGON_API_KEY}`
+  );
 
-  // Get both daily and intraday data
-  const [dailyResponse, intradayResponse] = await Promise.all([
-    fetch(`https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=${symbol}&outputsize=full&apikey=${Deno.env.get('ALPHAVANTAGE_API_KEY')}`),
-    fetch(`https://www.alphavantage.co/query?function=TIME_SERIES_INTRADAY&symbol=${symbol}&interval=5min&apikey=${Deno.env.get('ALPHAVANTAGE_API_KEY')}`)
-  ]);
-
-  let chartPoints = [];
-  let chartError = null;
-
-  if (!dailyResponse.ok || !intradayResponse.ok) {
-    console.error(`Failed to fetch chart data for ${symbol}`);
-    chartError = 'Failed to fetch chart data';
-  } else {
-    const [dailyData, intradayData] = await Promise.all([
-      dailyResponse.json(),
-      intradayResponse.json()
-    ]);
-    
-    if (dailyData.hasOwnProperty('Note') || intradayData.hasOwnProperty('Note')) {
-      console.warn(`Alpha Vantage rate limit hit for ${symbol}`);
-      chartError = 'API rate limit exceeded. Please try again in a minute.';
-    } else {
-      const dailyTimeSeriesData = dailyData['Time Series (Daily)'];
-      const intradayTimeSeriesData = intradayData['Time Series (5min)'];
-      
-      if (dailyTimeSeriesData && intradayTimeSeriesData) {
-        const dailyPoints = Object.entries(dailyTimeSeriesData)
-          .slice(0, 365)
-          .map(([date, values]: [string, any]) => ({
-            date: new Date(date).toLocaleDateString(),
-            value: parseFloat(values['4. close'])
-          }))
-          .reverse();
-
-        const today = new Date().toISOString().split('T')[0];
-        const intradayPoints = Object.entries(intradayTimeSeriesData)
-          .filter(([timestamp]) => timestamp.startsWith(today))
-          .map(([timestamp, values]: [string, any]) => ({
-            date: new Date(timestamp).toLocaleTimeString(),
-            value: parseFloat(values['4. close'])
-          }))
-          .reverse();
-
-        chartPoints = [...intradayPoints, ...dailyPoints];
-      }
-    }
+  if (!quoteResponse.ok) {
+    throw new Error(`Failed to fetch quote data for ${symbol}`);
   }
 
+  const quoteData = await quoteResponse.json();
+
+  // Fetch company details
+  const detailsResponse = await fetch(
+    `https://api.polygon.io/v3/reference/tickers/${symbol}?apiKey=${POLYGON_API_KEY}`
+  );
+
+  if (!detailsResponse.ok) {
+    throw new Error(`Failed to fetch details for ${symbol}`);
+  }
+
+  const detailsData = await detailsResponse.json();
+
+  // Fetch historical data (last 30 days)
+  const today = new Date();
+  const thirtyDaysAgo = new Date(today.setDate(today.getDate() - 30));
+  const formattedFromDate = thirtyDaysAgo.toISOString().split('T')[0];
+  const formattedToDate = new Date().toISOString().split('T')[0];
+
+  const historicalResponse = await fetch(
+    `https://api.polygon.io/v2/aggs/ticker/${symbol}/range/1/day/${formattedFromDate}/${formattedToDate}?adjusted=true&sort=asc&limit=120&apiKey=${POLYGON_API_KEY}`
+  );
+
+  if (!historicalResponse.ok) {
+    throw new Error(`Failed to fetch historical data for ${symbol}`);
+  }
+
+  const historicalData = await historicalResponse.json();
+
+  // Fetch news
   const newsResponse = await fetch(
-    `https://finnhub.io/api/v1/company-news?symbol=${symbol}&from=${new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]}&to=${new Date().toISOString().split('T')[0]}&token=${Deno.env.get('FINNHUB_API_KEY')}`
+    `https://api.polygon.io/v2/reference/news?ticker=${symbol}&order=desc&limit=5&apiKey=${POLYGON_API_KEY}`
   );
 
   let newsData = [];
   if (newsResponse.ok) {
-    newsData = await newsResponse.json();
+    const newsJson = await newsResponse.json();
+    newsData = newsJson.results || [];
   }
 
-  const description = profileData.description 
-    ? profileData.description.split('.')[0] + '.'
-    : `${profileData.name || symbol} is a publicly traded company.`;
-
-  return {
+  // Format the data
+  const result = {
     symbol,
-    name: profileData.name || symbol,
-    price: quoteData.c || 0,
-    change: quoteData.pc ? ((quoteData.c - quoteData.pc) / quoteData.pc * 100) : 0,
-    chartData: chartPoints,
-    description: description,
-    ...(chartError && { error: chartError }),
-    news: newsData
-      .slice(0, 5)
-      .map((article: any, index: number) => ({
-        id: `${symbol}-news-${index + 1}`,
-        title: article.headline || 'No title available',
-        summary: article.summary || 'No summary available',
-        date: new Date(article.datetime * 1000).toLocaleDateString(),
-        url: article.url || ''
-      }))
+    name: detailsData.results.name || symbol,
+    price: quoteData.results?.[0]?.c || 0,
+    change: quoteData.results?.[0]?.c && quoteData.results?.[0]?.o 
+      ? ((quoteData.results[0].c - quoteData.results[0].o) / quoteData.results[0].o * 100)
+      : 0,
+    chartData: (historicalData.results || []).map((bar: any) => ({
+      date: new Date(bar.t).toLocaleDateString(),
+      value: bar.c
+    })),
+    description: detailsData.results.description || `${detailsData.results.name || symbol} is a publicly traded company.`,
+    news: newsData.map((article: any, index: number) => ({
+      id: `${symbol}-news-${index + 1}`,
+      title: article.title || 'No title available',
+      summary: article.description || 'No summary available',
+      date: new Date(article.published_utc).toLocaleDateString(),
+      url: article.article_url || ''
+    }))
   };
+
+  return result;
 }
 
 serve(async (req) => {
@@ -175,8 +158,8 @@ serve(async (req) => {
       );
     }
 
-    // If no cached data, fetch fresh data
-    const freshData = await fetchFreshStockData(symbol);
+    // If no cached data, fetch fresh data from Polygon
+    const freshData = await fetchPolygonData(symbol);
     
     // Update cache with new data
     await updateStockDataCache(symbol, freshData);
@@ -190,7 +173,10 @@ serve(async (req) => {
     console.error('Error in fetchStockData:', error);
     
     return new Response(
-      JSON.stringify({ error: error.message || 'Failed to fetch stock data' }),
+      JSON.stringify({ 
+        error: error.message || 'Failed to fetch stock data',
+        details: error.toString()
+      }),
       { 
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
