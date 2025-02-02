@@ -18,6 +18,19 @@ export interface Stock {
   }[];
 }
 
+interface StockDataCache {
+  symbol: string;
+  data: {
+    name: string;
+    price: number;
+    change: number;
+    description: string;
+    news: any[];
+    chartData: any[];
+  };
+  last_updated: string;
+}
+
 export const generateStockBatch = async (): Promise<Stock[]> => {
   console.log('Generating stock batch');
   
@@ -50,7 +63,7 @@ export const generateStockBatch = async (): Promise<Stock[]> => {
     }
 
     // Shuffle the stocks array in memory
-    const shuffledStocks = availableStocks
+    const shuffledStocks = (availableStocks as StockDataCache[])
       .map(stock => ({
         id: stock.symbol,
         symbol: stock.symbol,

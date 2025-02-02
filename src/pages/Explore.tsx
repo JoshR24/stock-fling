@@ -18,6 +18,19 @@ interface StockSuggestion {
   change: number;
 }
 
+interface StockDataCache {
+  symbol: string;
+  data: {
+    name: string;
+    price: number;
+    change: number;
+    description: string;
+    news: any[];
+    chartData: any[];
+  };
+  last_updated: string;
+}
+
 const Explore = () => {
   const [stock, setStock] = useState<any>(null);
   const [recentNews, setRecentNews] = useState<any>(null);
@@ -44,7 +57,7 @@ const Explore = () => {
 
           if (error) throw error;
 
-          const formattedSuggestions = stockData?.map(stock => ({
+          const formattedSuggestions = (stockData as StockDataCache[])?.map(stock => ({
             symbol: stock.symbol,
             name: stock.data.name as string,
             price: stock.data.price as number,
@@ -90,14 +103,14 @@ const Explore = () => {
       if (error) throw error;
 
       const formattedStock = {
-        id: stockData.symbol,
-        symbol: stockData.symbol,
-        name: stockData.data.name,
-        price: stockData.data.price,
-        change: stockData.data.change,
-        description: stockData.data.description,
-        news: stockData.data.news,
-        chartData: stockData.data.chartData.map((point: any) => ({
+        id: (stockData as StockDataCache).symbol,
+        symbol: (stockData as StockDataCache).symbol,
+        name: (stockData as StockDataCache).data.name,
+        price: (stockData as StockDataCache).data.price,
+        change: (stockData as StockDataCache).data.change,
+        description: (stockData as StockDataCache).data.description,
+        news: (stockData as StockDataCache).data.news,
+        chartData: (stockData as StockDataCache).data.chartData.map((point: any) => ({
           value: parseFloat(point.value)
         }))
       };
