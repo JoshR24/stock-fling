@@ -11,7 +11,7 @@ const supabase = createClient(
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
 )
 
-const CACHE_DURATION = 1000 * 60 * 60; // 1 hour
+const CACHE_DURATION = 1000 * 60 * 60 * 24; // 24 hours
 
 async function getStockDataFromCache(symbol: string) {
   const { data, error } = await supabase
@@ -26,10 +26,11 @@ async function getStockDataFromCache(symbol: string) {
   }
 
   if (data && Date.now() - new Date(data.last_updated).getTime() < CACHE_DURATION) {
-    console.log(`Using cached data for ${symbol}`);
+    console.log(`Using cached data for ${symbol} (cache age: ${Math.round((Date.now() - new Date(data.last_updated).getTime()) / (1000 * 60 * 60))} hours)`);
     return data.data;
   }
 
+  console.log(`Cache expired for ${symbol}, last updated: ${data?.last_updated}`);
   return null;
 }
 
