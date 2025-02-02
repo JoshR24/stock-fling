@@ -60,9 +60,24 @@ const Index = ({ showPortfolio: initialShowPortfolio = false }: IndexProps) => {
         // Save to Supabase
         const saveToPortfolio = async () => {
           try {
+            // Get the current user
+            const { data: { user } } = await supabase.auth.getUser();
+            
+            if (!user) {
+              toast({
+                title: "Error",
+                description: "You must be logged in to save to portfolio.",
+                variant: "destructive",
+              });
+              return;
+            }
+
             const { error } = await supabase
               .from('portfolios')
-              .insert({ symbol: current.symbol });
+              .insert({ 
+                symbol: current.symbol,
+                user_id: user.id
+              });
 
             if (error) {
               console.error('Error saving to portfolio:', error);
