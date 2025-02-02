@@ -44,12 +44,11 @@ export const AIRecommendations = () => {
 
   const handleViewStock = async (symbol: string) => {
     try {
-      const stocks = await generateStockBatch(1);
-      const stock = {
-        ...stocks[0],
-        symbol: symbol,
-      };
-      setSelectedStock(stock);
+      const stocks = await generateStockBatch();
+      const stock = stocks.find(s => s.symbol === symbol);
+      if (stock) {
+        setSelectedStock(stock);
+      }
     } catch (error) {
       console.error('Error loading stock:', error);
       toast({
