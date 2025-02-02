@@ -39,19 +39,21 @@ export const Portfolio = ({ stocks }: PortfolioProps) => {
       setBalance(balanceData.balance);
     }
 
-    // Fetch portfolio
-    const { data: portfolioData, error: portfolioError } = await supabase
-      .from('portfolios')
+    // Fetch portfolio positions
+    const { data: positionsData, error: positionsError } = await supabase
+      .from('paper_trading_positions')
       .select('symbol')
       .eq('user_id', user.id);
 
-    if (portfolioError) {
-      console.error('Error fetching portfolio:', portfolioError);
+    if (positionsError) {
+      console.error('Error fetching positions:', positionsError);
       return;
     }
 
-    // Map portfolio symbols to actual stock data
-    const portfolioSymbols = new Set(portfolioData.map(item => item.symbol));
+    console.log('Fetched positions:', positionsData);
+
+    // Map position symbols to actual stock data
+    const portfolioSymbols = new Set(positionsData.map(item => item.symbol));
     const portfolioStocks = stocks.filter(stock => portfolioSymbols.has(stock.symbol));
     setPortfolioStocks(portfolioStocks);
   };
