@@ -8,6 +8,7 @@ import { TradeForm } from "./portfolio/TradeForm";
 import { StockList } from "./portfolio/StockList";
 import { PaperTradingDisclaimer } from "./portfolio/PaperTradingDisclaimer";
 import { useQuery } from "@tanstack/react-query";
+import { StockCard } from "./StockCard";
 
 interface PortfolioProps {
   stocks: Stock[];
