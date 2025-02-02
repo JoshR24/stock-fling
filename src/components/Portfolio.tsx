@@ -19,16 +19,19 @@ export const Portfolio = ({ stocks }: PortfolioProps) => {
   const [selectedStock, setSelectedStock] = useState<Stock | null>(null);
   const [quantity, setQuantity] = useState<string>("");
   const [balance, setBalance] = useState<number>(0);
+  const [portfolioStocks, setPortfolioStocks] = useState<Stock[]>([]);
   const { toast } = useToast();
 
+  // Fetch user's portfolio and balance
   useEffect(() => {
-    const fetchBalance = async () => {
+    const fetchPortfolioAndBalance = async () => {
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       if (userError || !user) {
         console.error('Error fetching user:', userError);
         return;
       }
 
+      // Fetch balance
       const { data: balanceData, error: balanceError } = await supabase
         .from('paper_trading_balances')
         .select('balance')
@@ -43,10 +46,80 @@ export const Portfolio = ({ stocks }: PortfolioProps) => {
       if (balanceData) {
         setBalance(balanceData.balance);
       }
+
+      // Fetch portfolio
+      const { data: portfolioData, error: portfolioError } = await supabase
+        .from('portfolios')
+        .select('symbol')
+        .eq('user_id', user.id);
+
+      if (portfolioError) {
+        console.error('Error fetching portfolio:', portfolioError);
+        return;
+      }
+
+      // Map portfolio symbols to actual stock data
+      const portfolioSymbols = new Set(portfolioData.map(item => item.symbol));
+      const portfolioStocks = stocks.filter(stock => portfolioSymbols.has(stock.symbol));
+      setPortfolioStocks(portfolioStocks);
     };
 
-    fetchBalance();
-  }, []);
+    fetchPortfolioAndBalance();
+  }, [stocks]);
+
+  const handleStockSelect = async (stock: Stock) => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast({
+          title: "Authentication required",
+          description: "Please sign in to add stocks to your portfolio",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Check if stock is already in portfolio
+      const { data: existingStock, error: checkError } = await supabase
+        .from('portfolios')
+        .select('symbol')
+        .eq('user_id', user.id)
+        .eq('symbol', stock.symbol)
+        .maybeSingle();
+
+      if (checkError) {
+        throw checkError;
+      }
+
+      if (!existingStock) {
+        // Add to portfolio
+        const { error: insertError } = await supabase
+          .from('portfolios')
+          .insert({
+            user_id: user.id,
+            symbol: stock.symbol
+          });
+
+        if (insertError) {
+          throw insertError;
+        }
+
+        setPortfolioStocks(prev => [...prev, stock]);
+        toast({
+          title: "Added to portfolio",
+          description: `${stock.symbol} has been added to your portfolio`,
+        });
+      }
+    } catch (error) {
+      console.error('Error updating portfolio:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update portfolio",
+        variant: "destructive",
+      });
+    }
+    setSelectedStock(stock);
+  };
 
   const handleTrade = async (type: 'buy' | 'sell') => {
     if (!selectedStock || !quantity || isNaN(Number(quantity))) {
@@ -215,7 +288,7 @@ export const Portfolio = ({ stocks }: PortfolioProps) => {
           </span>
         </Card>
 
-        <PortfolioPositions stocks={stocks} />
+        <PortfolioPositions stocks={portfolioStocks} />
 
         {selectedStock && (
           <Card className="p-4 mb-4">
@@ -257,7 +330,7 @@ export const Portfolio = ({ stocks }: PortfolioProps) => {
           <Card 
             key={stock.id} 
             className="p-4 glass-card cursor-pointer hover:opacity-90 transition-opacity"
-            onClick={() => setSelectedStock(stock)}
+            onClick={() => handleStockSelect(stock)}
           >
             <div className="flex justify-between items-start mb-2">
               <div>
