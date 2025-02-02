@@ -26,6 +26,7 @@ export const PortfolioPositions = ({ stocks }: PortfolioPositionsProps) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
+      // Fetch positions from paper_trading_positions instead of portfolios
       const { data, error } = await supabase
         .from('paper_trading_positions')
         .select('symbol, quantity, average_price')
@@ -36,6 +37,7 @@ export const PortfolioPositions = ({ stocks }: PortfolioPositionsProps) => {
         return;
       }
 
+      console.log('Fetched positions:', data); // Debug log
       setPositions(data || []);
     };
 
@@ -56,6 +58,8 @@ export const PortfolioPositions = ({ stocks }: PortfolioPositionsProps) => {
       }
     });
 
+    console.log('Calculated total value:', totalVal); // Debug log
+    console.log('Calculated total gain/loss:', totalGL); // Debug log
     setTotalValue(totalVal);
     setTotalGainLoss(totalGL);
   }, [positions, stocks]);
