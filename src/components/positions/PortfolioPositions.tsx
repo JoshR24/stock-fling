@@ -101,7 +101,6 @@ export const PortfolioPositions = ({ stocks }: PortfolioPositionsProps) => {
               <TableRow>
                 <TableHead className="text-xs">Symbol</TableHead>
                 <TableHead className="text-xs text-right">Qty</TableHead>
-                <TableHead className="text-xs text-right">Avg</TableHead>
                 <TableHead className="text-xs text-right">Price</TableHead>
                 <TableHead className="text-xs text-right">G/L</TableHead>
               </TableRow>
@@ -120,7 +119,6 @@ export const PortfolioPositions = ({ stocks }: PortfolioPositionsProps) => {
                   <TableRow key={position.symbol}>
                     <TableCell className="font-medium text-xs py-2">{position.symbol}</TableCell>
                     <TableCell className="text-right text-xs py-2">{position.quantity}</TableCell>
-                    <TableCell className="text-right text-xs py-2">${position.average_price.toFixed(2)}</TableCell>
                     <TableCell className="text-right text-xs py-2">${stock.price.toFixed(2)}</TableCell>
                     <TableCell className="text-right text-xs py-2">
                       <div className="flex items-center justify-end gap-1">
