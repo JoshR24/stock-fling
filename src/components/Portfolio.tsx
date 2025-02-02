@@ -41,6 +41,12 @@ export const Portfolio = ({ stocks }: PortfolioProps) => {
     setSelectedStock(null);
   };
 
+  const handleSwipe = (direction: "left" | "right") => {
+    // After a successful swipe, the stock will be removed from the list
+    // The actual deletion is handled in the StockCard component
+    setSelectedStock(null);
+  };
+
   if (stocks.length === 0) {
     return (
       <div className="h-full flex items-center justify-center">
@@ -58,9 +64,11 @@ export const Portfolio = ({ stocks }: PortfolioProps) => {
           <PortfolioPositions stocks={stocks} />
           
           {selectedStock && (
-            <TradeForm 
-              selectedStock={selectedStock}
-              onTrade={handleTradeComplete}
+            <StockCard
+              key={selectedStock.id}
+              stock={selectedStock}
+              onSwipe={handleSwipe}
+              isPortfolioMode={true}
             />
           )}
 
