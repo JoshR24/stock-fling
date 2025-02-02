@@ -49,10 +49,11 @@ const Explore = () => {
     const searchStocks = async () => {
       if (searchQuery.length > 0) {
         try {
+          // Using textSearch for JSONB data
           const { data: stockData, error } = await supabase
             .from('stock_data_cache')
             .select('symbol, data')
-            .or(`symbol.ilike.%${searchQuery}%,data->name.ilike.%${searchQuery}%`)
+            .or(`symbol.ilike.%${searchQuery}%,data->>name.ilike.%${searchQuery}%`)
             .limit(10);
 
           if (error) throw error;
