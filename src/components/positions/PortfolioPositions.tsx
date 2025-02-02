@@ -17,22 +17,40 @@ interface PortfolioPositionsProps {
 }
 
 export const PortfolioPositions = ({ stocks }: PortfolioPositionsProps) => {
-  const { data: positions = [], isLoading } = useQuery({
+  const { data: positions = [], isLoading, error } = useQuery({
     queryKey: ['positions'],
     queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('User not authenticated');
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError) {
+        console.error('User error:', userError);
+        throw userError;
+      }
+      console.log('Current user:', user);
 
-      const { data, error } = await supabase
+      if (!user) {
+        console.error('No user found');
+        throw new Error('User not authenticated');
+      }
+
+      const { data, error: positionsError } = await supabase
         .from('paper_trading_positions')
         .select('symbol, quantity, average_price')
         .eq('user_id', user.id);
 
-      if (error) throw error;
+      if (positionsError) {
+        console.error('Positions error:', positionsError);
+        throw positionsError;
+      }
+
       console.log('Fetched positions:', data);
       return data as Position[] || [];
     }
   });
+
+  // Log any query errors
+  if (error) {
+    console.error('Query error:', error);
+  }
 
   // Calculate total value and gain/loss
   const totalValue = positions.reduce((sum, position) => {
