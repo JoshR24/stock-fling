@@ -9,6 +9,51 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      account_deletion_requests: {
+        Row: {
+          completed_at: string | null
+          id: string
+          requested_at: string | null
+          status: string | null
+          user_id: string | null
+        }
+        Insert: {
+          completed_at?: string | null
+          id?: string
+          requested_at?: string | null
+          status?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          completed_at?: string | null
+          id?: string
+          requested_at?: string | null
+          status?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
+      app_settings: {
+        Row: {
+          id: string
+          last_updated: string | null
+          support_email: string
+          support_phone: string | null
+        }
+        Insert: {
+          id?: string
+          last_updated?: string | null
+          support_email?: string
+          support_phone?: string | null
+        }
+        Update: {
+          id?: string
+          last_updated?: string | null
+          support_email?: string
+          support_phone?: string | null
+        }
+        Relationships: []
+      }
       mlb_schedules: {
         Row: {
           away_team: string | null
