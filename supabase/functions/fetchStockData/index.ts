@@ -47,6 +47,26 @@ async function updateStockDataCache(symbol: string, data: any) {
   }
 }
 
+async function getAllTickers() {
+  const POLYGON_API_KEY = Deno.env.get('POLYGON_API_KEY');
+  if (!POLYGON_API_KEY) {
+    throw new Error('Polygon API key not configured');
+  }
+
+  console.log('Fetching all tickers from Polygon');
+  
+  const response = await fetch(
+    `https://api.polygon.io/v3/reference/tickers?market=stocks&active=true&limit=1000&apiKey=${POLYGON_API_KEY}`
+  );
+
+  if (!response.ok) {
+    throw new Error('Failed to fetch tickers');
+  }
+
+  const data = await response.json();
+  return data.results.map((ticker: any) => ticker.ticker);
+}
+
 async function fetchPolygonData(symbol: string) {
   console.log(`Fetching fresh data from Polygon for ${symbol}`);
   
@@ -129,14 +149,55 @@ async function fetchPolygonData(symbol: string) {
   return result;
 }
 
+async function initializeStockCache() {
+  try {
+    const tickers = await getAllTickers();
+    console.log(`Found ${tickers.length} tickers to cache`);
+
+    // Process tickers in batches to avoid rate limits
+    const batchSize = 5;
+    for (let i = 0; i < tickers.length; i += batchSize) {
+      const batch = tickers.slice(i, i + batchSize);
+      await Promise.all(batch.map(async (symbol: string) => {
+        try {
+          const data = await fetchPolygonData(symbol);
+          await updateStockDataCache(symbol, data);
+          console.log(`Cached data for ${symbol}`);
+        } catch (error) {
+          console.error(`Failed to cache data for ${symbol}:`, error);
+        }
+      }));
+
+      // Add a delay between batches to respect rate limits
+      if (i + batchSize < tickers.length) {
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+    }
+
+    console.log('Stock cache initialization complete');
+  } catch (error) {
+    console.error('Failed to initialize stock cache:', error);
+  }
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { symbol } = await req.json();
+    const { symbol, initialize } = await req.json();
     
+    if (initialize) {
+      console.log('Initializing stock cache');
+      // Use EdgeRuntime.waitUntil to run initialization in the background
+      EdgeRuntime.waitUntil(initializeStockCache());
+      return new Response(
+        JSON.stringify({ message: 'Stock cache initialization started' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     if (!symbol) {
       return new Response(
         JSON.stringify({ error: 'Symbol is required' }),
