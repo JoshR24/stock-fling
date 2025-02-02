@@ -73,8 +73,13 @@ const Index = ({ showPortfolio: initialShowPortfolio = false }: IndexProps) => {
       const requiredSymbols = positionsData?.map(position => position.symbol) || [];
       console.log('Required symbols from positions:', requiredSymbols);
 
-      // Generate stocks including required ones
-      const newStocks = await generateStockBatch(Math.max(5, requiredSymbols.length), requiredSymbols);
+      // Generate a larger batch of stocks, including some (not all) required ones
+      // We'll include up to 2 portfolio stocks in each batch to maintain variety
+      const portfolioSymbolsToInclude = requiredSymbols
+        .sort(() => Math.random() - 0.5)
+        .slice(0, 2);
+      
+      const newStocks = await generateStockBatch(5, portfolioSymbolsToInclude);
       setStocks(prev => {
         const existingSymbols = new Set(prev.map(s => s.symbol));
         return [...prev, ...newStocks.filter(s => !existingSymbols.has(s.symbol))];
