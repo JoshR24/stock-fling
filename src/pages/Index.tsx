@@ -40,33 +40,33 @@ const Index = ({ showPortfolio: initialShowPortfolio = false }: IndexProps) => {
     loadStocks();
   }, []);
 
-  // Fetch portfolio data using React Query
-  const { data: portfolioData, isLoading: isPortfolioLoading } = useQuery({
-    queryKey: ['portfolio'],
+  // Fetch positions data using React Query
+  const { data: positionsData, isLoading: isPortfolioLoading } = useQuery({
+    queryKey: ['positions'],
     queryFn: async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return [];
 
-      console.log('Fetching portfolio for user:', user.id);
+      console.log('Fetching positions for user:', user.id);
       
       const { data, error } = await supabase
-        .from('portfolios')
-        .select('symbol')
+        .from('paper_trading_positions')
+        .select('*')
         .eq('user_id', user.id);
 
       if (error) {
-        console.error('Error fetching portfolio:', error);
+        console.error('Error fetching positions:', error);
         throw error;
       }
 
-      console.log('Portfolio data from DB:', data);
+      console.log('Fetched positions:', data);
       return data || [];
     },
   });
 
-  // Map portfolio symbols to stock objects
+  // Map positions symbols to stock objects
   const portfolioStocks = stocks.filter(stock => 
-    portfolioData?.some(item => item.symbol === stock.symbol)
+    positionsData?.some(position => position.symbol === stock.symbol)
   );
 
   console.log('Current stocks:', stocks);
