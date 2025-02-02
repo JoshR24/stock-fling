@@ -8,18 +8,14 @@ import { StockPrice } from "./stock/StockPrice";
 import { StockNews } from "./stock/StockNews";
 import { SwipeInstructions } from "./stock/SwipeInstructions";
 import { useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
 
 interface StockCardProps {
   stock: Stock;
   onSwipe: (direction: "left" | "right") => void;
-  isPortfolioMode?: boolean;
 }
 
-export const StockCard = ({ stock, onSwipe, isPortfolioMode = false }: StockCardProps) => {
+export const StockCard = ({ stock, onSwipe }: StockCardProps) => {
   const [currentTimeframe, setCurrentTimeframe] = useState<'1D' | '5D' | '30D' | '1Y'>('30D');
-  const { toast } = useToast();
   const x = useMotionValue(0);
   const rotate = useTransform(x, [-200, 200], [-30, 30]);
   
@@ -35,51 +31,6 @@ export const StockCard = ({ stock, onSwipe, isPortfolioMode = false }: StockCard
     [0, 0.15, 0.3]
   );
 
-  const handleSwipe = async (direction: "left" | "right") => {
-    if (isPortfolioMode && direction === "left") {
-      try {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
-          toast({
-            title: "Error",
-            description: "You must be logged in to remove stocks from portfolio.",
-            variant: "destructive",
-          });
-          return;
-        }
-
-        const { error } = await supabase
-          .from('portfolios')
-          .delete()
-          .eq('user_id', user.id)
-          .eq('symbol', stock.symbol);
-
-        if (error) {
-          console.error('Error removing from portfolio:', error);
-          toast({
-            title: "Error",
-            description: "Failed to remove stock from portfolio. Please try again.",
-            variant: "destructive",
-          });
-          return;
-        }
-
-        toast({
-          title: "Removed from Portfolio",
-          description: `${stock.symbol} has been removed from your portfolio.`,
-        });
-      } catch (error) {
-        console.error('Error in removeFromPortfolio:', error);
-        toast({
-          title: "Error",
-          description: "Failed to remove stock from portfolio. Please try again.",
-          variant: "destructive",
-        });
-      }
-    }
-    onSwipe(direction);
-  };
-
   return (
     <motion.div
       className="absolute w-full h-full"
@@ -90,9 +41,9 @@ export const StockCard = ({ stock, onSwipe, isPortfolioMode = false }: StockCard
       onDragEnd={(e, { offset, velocity }) => {
         const swipe = Math.abs(velocity.x) * offset.x;
         if (swipe < -10000) {
-          handleSwipe("left");
+          onSwipe("left");
         } else if (swipe > 10000) {
-          handleSwipe("right");
+          onSwipe("right");
         }
       }}
       whileDrag={{ scale: 1.05 }}
