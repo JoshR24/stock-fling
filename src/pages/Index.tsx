@@ -66,9 +66,27 @@ const Index = ({ showPortfolio: initialShowPortfolio = false }: IndexProps) => {
     },
   });
 
+  // Get the total number of stocks in cache
+  const getCacheSize = async () => {
+    const { count, error } = await supabase
+      .from('stock_data_cache')
+      .select('*', { count: 'exact', head: true });
+
+    if (error) {
+      console.error('Error getting cache size:', error);
+      return 20; // fallback size
+    }
+
+    return count || 20;
+  };
+
   // Load initial stocks
   const loadStocks = async () => {
     try {
+      // Get the total number of stocks in cache
+      const cacheSize = await getCacheSize();
+      console.log('Total stocks in cache:', cacheSize);
+
       // Get symbols from positions
       const requiredSymbols = positionsData?.map(position => position.symbol) || [];
       console.log('Required symbols from positions:', requiredSymbols);
@@ -79,7 +97,7 @@ const Index = ({ showPortfolio: initialShowPortfolio = false }: IndexProps) => {
         .sort(() => Math.random() - 0.5)
         .slice(0, 2);
       
-      const newStocks = await generateStockBatch(5, portfolioSymbolsToInclude);
+      const newStocks = await generateStockBatch(cacheSize, portfolioSymbolsToInclude);
       setStocks(prev => {
         const existingSymbols = new Set(prev.map(s => s.symbol));
         return [...prev, ...newStocks.filter(s => !existingSymbols.has(s.symbol))];
