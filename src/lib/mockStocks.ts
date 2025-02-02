@@ -53,14 +53,24 @@ const resetShownStocksIfNeeded = () => {
   }
 };
 
-export const generateStockBatch = async (count: number): Promise<Stock[]> => {
+export const generateStockBatch = async (count: number, requiredSymbols: string[] = []): Promise<Stock[]> => {
+  console.log('Generating stock batch with required symbols:', requiredSymbols);
   resetShownStocksIfNeeded();
   
-  // Filter out already shown stocks and randomly select from remaining
-  const availableStocks = stockUniverse.filter(symbol => !shownStocks.has(symbol));
-  const selectedStocks = availableStocks
-    .sort(() => Math.random() - 0.5)
-    .slice(0, count);
+  // First, handle required symbols
+  const requiredStocks = requiredSymbols.filter(symbol => stockUniverse.includes(symbol));
+  
+  // Then, get additional random stocks if needed
+  const remainingCount = count - requiredStocks.length;
+  const availableStocks = stockUniverse.filter(symbol => 
+    !shownStocks.has(symbol) && !requiredSymbols.includes(symbol)
+  );
+  
+  const additionalStocks = remainingCount > 0 
+    ? availableStocks.sort(() => Math.random() - 0.5).slice(0, remainingCount)
+    : [];
+  
+  const selectedStocks = [...requiredStocks, ...additionalStocks];
   
   // Add selected stocks to shown stocks set
   selectedStocks.forEach(symbol => shownStocks.add(symbol));

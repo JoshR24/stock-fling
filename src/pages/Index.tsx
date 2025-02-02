@@ -17,31 +17,8 @@ const Index = ({ showPortfolio: initialShowPortfolio = false }: IndexProps) => {
   const [showPortfolio, setShowPortfolio] = useState(initialShowPortfolio);
   const { toast } = useToast();
 
-  // Load initial stocks
-  const loadStocks = async () => {
-    try {
-      const newStocks = await generateStockBatch(5);
-      setStocks(prev => {
-        const existingSymbols = new Set(prev.map(s => s.symbol));
-        return [...prev, ...newStocks.filter(s => !existingSymbols.has(s.symbol))];
-      });
-    } catch (error) {
-      console.error('Error loading stocks:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load stock data. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  // Load initial stocks on mount
-  useEffect(() => {
-    loadStocks();
-  }, []);
-
   // Fetch positions data using React Query
-  const { data: positionsData, isLoading: isPortfolioLoading } = useQuery({
+  const { data: positionsData } = useQuery({
     queryKey: ['positions'],
     queryFn: async () => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -63,6 +40,34 @@ const Index = ({ showPortfolio: initialShowPortfolio = false }: IndexProps) => {
       return data || [];
     },
   });
+
+  // Load initial stocks
+  const loadStocks = async () => {
+    try {
+      // Get symbols from positions
+      const requiredSymbols = positionsData?.map(position => position.symbol) || [];
+      console.log('Required symbols from positions:', requiredSymbols);
+
+      // Generate stocks including required ones
+      const newStocks = await generateStockBatch(Math.max(5, requiredSymbols.length), requiredSymbols);
+      setStocks(prev => {
+        const existingSymbols = new Set(prev.map(s => s.symbol));
+        return [...prev, ...newStocks.filter(s => !existingSymbols.has(s.symbol))];
+      });
+    } catch (error) {
+      console.error('Error loading stocks:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load stock data. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Load initial stocks on mount or when positions change
+  useEffect(() => {
+    loadStocks();
+  }, [positionsData]);
 
   // Map positions symbols to stock objects
   const portfolioStocks = stocks.filter(stock => 
@@ -152,13 +157,7 @@ const Index = ({ showPortfolio: initialShowPortfolio = false }: IndexProps) => {
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
               className="h-[calc(100%-4rem)]"
             >
-              {isPortfolioLoading ? (
-                <div className="w-full h-full">
-                  <Skeleton className="w-full h-full rounded-lg" />
-                </div>
-              ) : (
-                <Portfolio stocks={portfolioStocks} />
-              )}
+              <Portfolio stocks={stocks} />
             </motion.div>
           ) : (
             <motion.div
