@@ -63,28 +63,38 @@ export const generateStockBatch = async (count: number, requiredSymbols: string[
   console.log('Generating stock batch with required symbols:', requiredSymbols);
   resetShownStocksIfNeeded();
   
+  // Get user's portfolio stocks to exclude them
+  const { data: { user } } = await supabase.auth.getUser();
+  const { data: portfolioStocks } = await supabase
+    .from('portfolios')
+    .select('symbol')
+    .eq('user_id', user?.id);
+
+  const portfolioSymbols = new Set(portfolioStocks?.map(stock => stock.symbol) || []);
+  console.log('Portfolio symbols to exclude:', portfolioSymbols);
+  
   // Always include required symbols (portfolio stocks)
-  const portfolioStocks = requiredSymbols.filter(symbol => 
+  const portfolioStocksToInclude = requiredSymbols.filter(symbol => 
     stockUniverse.includes(symbol)
   );
   
-  // Get available stocks (not required)
+  // Get available stocks (not required and not in portfolio)
   const availableStocks = stockUniverse.filter(symbol => 
-    !requiredSymbols.includes(symbol)
+    !requiredSymbols.includes(symbol) && !portfolioSymbols.has(symbol)
   );
   
   // Shuffle available stocks
   const shuffledStocks = availableStocks.sort(() => Math.random() - 0.5);
   
   // Calculate how many additional stocks we need
-  const remainingCount = count - portfolioStocks.length;
+  const remainingCount = count - portfolioStocksToInclude.length;
   
   // Get additional random stocks
   const additionalStocks = remainingCount > 0 
     ? shuffledStocks.slice(0, remainingCount)
     : [];
   
-  const selectedStocks = [...portfolioStocks, ...additionalStocks];
+  const selectedStocks = [...portfolioStocksToInclude, ...additionalStocks];
   
   // Add non-portfolio stocks to shown stocks set
   additionalStocks.forEach(symbol => shownStocks.add(symbol));
