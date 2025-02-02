@@ -8,6 +8,7 @@ import { TradeForm } from "./portfolio/TradeForm";
 import { StockList } from "./portfolio/StockList";
 import { PaperTradingDisclaimer } from "./portfolio/PaperTradingDisclaimer";
 import { Support } from "./portfolio/Support";
+import { useQuery } from "@tanstack/react-query";
 
 interface PortfolioProps {
   stocks: Stock[];
@@ -15,64 +16,59 @@ interface PortfolioProps {
 
 export const Portfolio = ({ stocks }: PortfolioProps) => {
   const [selectedStock, setSelectedStock] = useState<Stock | null>(null);
-  const [balance, setBalance] = useState<number>(0);
-  const [portfolioStocks, setPortfolioStocks] = useState<Stock[]>([]);
   const [supportEmail, setSupportEmail] = useState("support@stockfling.com");
 
-  const fetchPortfolioAndBalance = async () => {
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) {
-      console.error('Error fetching user:', userError);
-      return;
+  // Use React Query for data fetching
+  const { data: balanceData } = useQuery({
+    queryKey: ['balance'],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
+
+      const { data, error } = await supabase
+        .from('paper_trading_balances')
+        .select('balance')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (error) throw error;
+      return data;
     }
+  });
 
-    // Fetch balance
-    const { data: balanceData, error: balanceError } = await supabase
-      .from('paper_trading_balances')
-      .select('balance')
-      .eq('user_id', user.id)
-      .maybeSingle();
+  const { data: portfolioStocks, refetch: refetchPortfolio } = useQuery({
+    queryKey: ['portfolio'],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
 
-    if (balanceError) {
-      console.error('Error fetching balance:', balanceError);
-      return;
+      const { data: positionsData, error: positionsError } = await supabase
+        .from('paper_trading_positions')
+        .select('symbol, quantity, average_price')
+        .eq('user_id', user.id);
+
+      if (positionsError) throw positionsError;
+
+      console.log('Fetched positions:', positionsData);
+      const portfolioSymbols = new Set(positionsData.map(item => item.symbol));
+      return stocks.filter(stock => portfolioSymbols.has(stock.symbol));
     }
-
-    if (balanceData) {
-      setBalance(balanceData.balance);
-    }
-
-    // Fetch portfolio positions
-    const { data: positionsData, error: positionsError } = await supabase
-      .from('paper_trading_positions')
-      .select('symbol, quantity, average_price')
-      .eq('user_id', user.id);
-
-    if (positionsError) {
-      console.error('Error fetching positions:', positionsError);
-      return;
-    }
-
-    const portfolioSymbols = new Set(positionsData.map(item => item.symbol));
-    const portfolioStocks = stocks.filter(stock => portfolioSymbols.has(stock.symbol));
-    setPortfolioStocks(portfolioStocks);
-  };
-
-  const fetchSupportInfo = async () => {
-    const { data, error } = await supabase
-      .from('app_settings')
-      .select('support_email')
-      .single();
-
-    if (!error && data) {
-      setSupportEmail(data.support_email);
-    }
-  };
+  });
 
   useEffect(() => {
-    fetchPortfolioAndBalance();
+    const fetchSupportInfo = async () => {
+      const { data, error } = await supabase
+        .from('app_settings')
+        .select('support_email')
+        .single();
+
+      if (!error && data) {
+        setSupportEmail(data.support_email);
+      }
+    };
+
     fetchSupportInfo();
-  }, [stocks]);
+  }, []);
 
   const handleStockSelect = (stock: Stock) => {
     setSelectedStock(stock);
@@ -80,7 +76,7 @@ export const Portfolio = ({ stocks }: PortfolioProps) => {
 
   const handleTradeComplete = () => {
     setSelectedStock(null);
-    fetchPortfolioAndBalance();
+    refetchPortfolio(); // Refetch portfolio data after trade
   };
 
   if (stocks.length === 0) {
@@ -95,7 +91,7 @@ export const Portfolio = ({ stocks }: PortfolioProps) => {
     <ScrollArea className="h-full">
       <div className="space-y-4 p-4">
         <PaperTradingDisclaimer />
-        <AvailableCash balance={balance} />
+        <AvailableCash balance={balanceData?.balance || 0} />
         <PortfolioPositions stocks={stocks} />
         
         {selectedStock && (
