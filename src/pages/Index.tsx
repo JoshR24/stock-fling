@@ -7,7 +7,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
-import { Button } from "@/components/ui/button";
 
 interface IndexProps {
   showPortfolio?: boolean;
@@ -17,35 +16,31 @@ const Index = ({ showPortfolio: initialShowPortfolio = false }: IndexProps) => {
   const [stocks, setStocks] = useState<Stock[]>([]);
   const [showPortfolio, setShowPortfolio] = useState(initialShowPortfolio);
   const { toast } = useToast();
-  const [isInitializingCache, setIsInitializingCache] = useState(false);
 
   // Function to initialize the stock cache
   const initializeStockCache = async () => {
     try {
-      setIsInitializingCache(true);
       const { data, error } = await supabase.functions.invoke('fetchStockData', {
         body: { initialize: true }
       });
 
       if (error) throw error;
 
-      toast({
-        title: "Cache Initialization Started",
-        description: "The stock cache is being populated in the background. This may take a few minutes.",
-      });
-
       console.log('Cache initialization response:', data);
     } catch (error) {
       console.error('Error initializing cache:', error);
       toast({
         title: "Error",
-        description: "Failed to initialize stock cache. Please try again.",
+        description: "Failed to initialize stock cache. Please try again later.",
         variant: "destructive",
       });
-    } finally {
-      setIsInitializingCache(false);
     }
   };
+
+  // Initialize cache when component mounts
+  useEffect(() => {
+    initializeStockCache();
+  }, []);
 
   // Fetch positions data using React Query
   const { data: positionsData } = useQuery({
@@ -177,14 +172,6 @@ const Index = ({ showPortfolio: initialShowPortfolio = false }: IndexProps) => {
           <h1 className="text-2xl font-bold">
             {showPortfolio ? "Portfolio" : "Stockr"}
           </h1>
-          <Button 
-            onClick={initializeStockCache} 
-            disabled={isInitializingCache}
-            variant="outline"
-            size="sm"
-          >
-            {isInitializingCache ? "Initializing..." : "Initialize Stock Cache"}
-          </Button>
         </div>
 
         <AnimatePresence mode="wait">
