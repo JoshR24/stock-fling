@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Stock } from "@/lib/mockStocks";
 import { ScrollArea } from "./ui/scroll-area";
 import { supabase } from "@/integrations/supabase/client";
@@ -36,47 +36,12 @@ export const Portfolio = ({ stocks }: PortfolioProps) => {
     }
   });
 
-  const { data: portfolioStocks, refetch: refetchPortfolio } = useQuery({
-    queryKey: ['portfolio'],
-    queryFn: async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('User not authenticated');
-
-      const { data: positionsData, error: positionsError } = await supabase
-        .from('paper_trading_positions')
-        .select('symbol, quantity, average_price')
-        .eq('user_id', user.id);
-
-      if (positionsError) throw positionsError;
-
-      console.log('Fetched positions:', positionsData);
-      const portfolioSymbols = new Set(positionsData.map(item => item.symbol));
-      return stocks.filter(stock => portfolioSymbols.has(stock.symbol));
-    }
-  });
-
-  useEffect(() => {
-    const fetchSupportInfo = async () => {
-      const { data, error } = await supabase
-        .from('app_settings')
-        .select('support_email')
-        .single();
-
-      if (!error && data) {
-        setSupportEmail(data.support_email);
-      }
-    };
-
-    fetchSupportInfo();
-  }, []);
-
   const handleStockSelect = (stock: Stock) => {
     setSelectedStock(stock);
   };
 
   const handleTradeComplete = () => {
     setSelectedStock(null);
-    refetchPortfolio(); // Refetch portfolio data after trade
   };
 
   if (stocks.length === 0) {

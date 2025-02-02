@@ -30,7 +30,7 @@ export const PortfolioPositions = ({ stocks }: PortfolioPositionsProps) => {
 
       if (error) throw error;
       console.log('Fetched positions:', data);
-      return data || [];
+      return data as Position[] || [];
     }
   });
 
@@ -61,7 +61,7 @@ export const PortfolioPositions = ({ stocks }: PortfolioPositionsProps) => {
     );
   }
 
-  if (positions.length === 0) {
+  if (!positions || positions.length === 0) {
     return (
       <Card className="p-4">
         <p className="text-center text-muted-foreground">No positions found. Start trading to see your portfolio here!</p>
