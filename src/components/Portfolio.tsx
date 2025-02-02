@@ -7,7 +7,6 @@ import { AvailableCash } from "./portfolio/AvailableCash";
 import { TradeForm } from "./portfolio/TradeForm";
 import { StockList } from "./portfolio/StockList";
 import { PaperTradingDisclaimer } from "./portfolio/PaperTradingDisclaimer";
-import { Support } from "./portfolio/Support";
 import { useQuery } from "@tanstack/react-query";
 
 interface PortfolioProps {
@@ -16,7 +15,6 @@ interface PortfolioProps {
 
 export const Portfolio = ({ stocks }: PortfolioProps) => {
   const [selectedStock, setSelectedStock] = useState<Stock | null>(null);
-  const [supportEmail, setSupportEmail] = useState("support@stockfling.com");
 
   // Use React Query for data fetching
   const { data: balanceData } = useQuery({
@@ -70,8 +68,6 @@ export const Portfolio = ({ stocks }: PortfolioProps) => {
           stocks={stocks}
           onSelectStock={handleStockSelect}
         />
-
-        <Support supportEmail={supportEmail} />
       </div>
     </ScrollArea>
   );

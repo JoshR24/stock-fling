@@ -2,6 +2,8 @@ import { Stock } from "@/lib/mockStocks";
 import { Card } from "../ui/card";
 import { Area, AreaChart, ResponsiveContainer, YAxis } from "recharts";
 import { Badge } from "../ui/badge";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 interface StockListProps {
   stocks: Stock[];
@@ -9,9 +11,34 @@ interface StockListProps {
 }
 
 export const StockList = ({ stocks, onSelectStock }: StockListProps) => {
+  // Fetch positions to ensure we show all owned stocks
+  const { data: positions = [] } = useQuery({
+    queryKey: ['positions'],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
+
+      const { data, error } = await supabase
+        .from('paper_trading_positions')
+        .select('*')
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+      console.log('Fetched positions:', data);
+      return data || [];
+    }
+  });
+
+  // Filter stocks to only show those in positions
+  const portfolioStocks = stocks.filter(stock => 
+    positions.some(position => position.symbol === stock.symbol)
+  );
+
+  console.log('Portfolio stocks:', portfolioStocks);
+
   return (
     <>
-      {stocks.map((stock) => (
+      {portfolioStocks.map((stock) => (
         <Card 
           key={stock.id} 
           className="p-4 glass-card cursor-pointer hover:opacity-90 transition-opacity"
