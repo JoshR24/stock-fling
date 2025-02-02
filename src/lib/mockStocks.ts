@@ -52,48 +52,56 @@ const stockUniverse = [
 let shownStocks = new Set<string>();
 
 // Reset shown stocks if we've shown all available stocks
-const resetShownStocksIfNeeded = () => {
-  if (shownStocks.size >= stockUniverse.length) {
+const resetShownStocksIfNeeded = async () => {
+  const { data: availableStocks } = await supabase
+    .from('stock_data_cache')
+    .select('symbol');
+    
+  if (shownStocks.size >= (availableStocks?.length || 0)) {
     console.log('Resetting shown stocks history - all stocks have been shown');
     shownStocks.clear();
   }
 };
 
-export const generateStockBatch = async (count: number, requiredSymbols: string[] = []): Promise<Stock[]> => {
-  console.log('Generating stock batch with required symbols:', requiredSymbols);
-  resetShownStocksIfNeeded();
+export const generateStockBatch = async (count: number): Promise<Stock[]> => {
+  console.log('Generating new stock batch');
+  await resetShownStocksIfNeeded();
   
-  // Always include required symbols (portfolio stocks)
-  const portfolioStocks = requiredSymbols.filter(symbol => 
-    stockUniverse.includes(symbol)
-  );
+  // Get user's portfolio symbols to exclude them
+  const { data: { user } } = await supabase.auth.getUser();
+  const { data: portfolioPositions } = await supabase
+    .from('paper_trading_positions')
+    .select('symbol')
+    .eq('user_id', user?.id);
+    
+  const portfolioSymbols = new Set(portfolioPositions?.map(pos => pos.symbol) || []);
   
-  // Get available stocks (not required)
-  const availableStocks = stockUniverse.filter(symbol => 
-    !requiredSymbols.includes(symbol)
-  );
+  // Get all available stocks from cache that aren't in portfolio
+  const { data: availableStocks } = await supabase
+    .from('stock_data_cache')
+    .select('symbol')
+    .not('symbol', 'in', `(${Array.from(portfolioSymbols).join(',')})`)
+    .not('symbol', 'in', `(${Array.from(shownStocks).join(',')})`);
+    
+  if (!availableStocks || availableStocks.length === 0) {
+    console.log('No available stocks found, resetting shown stocks');
+    shownStocks.clear();
+    return generateStockBatch(count);
+  }
   
-  // Shuffle available stocks
-  const shuffledStocks = availableStocks.sort(() => Math.random() - 0.5);
+  // Randomly select stocks
+  const shuffledStocks = availableStocks
+    .sort(() => Math.random() - 0.5)
+    .slice(0, count)
+    .map(stock => stock.symbol);
+    
+  console.log('Selected stocks for batch:', shuffledStocks);
   
-  // Calculate how many additional stocks we need
-  const remainingCount = count - portfolioStocks.length;
+  // Add selected stocks to shown stocks set
+  shuffledStocks.forEach(symbol => shownStocks.add(symbol));
   
-  // Get additional random stocks
-  const additionalStocks = remainingCount > 0 
-    ? shuffledStocks.slice(0, remainingCount)
-    : [];
-  
-  const selectedStocks = [...portfolioStocks, ...additionalStocks];
-  
-  // Add non-portfolio stocks to shown stocks set
-  additionalStocks.forEach(symbol => shownStocks.add(symbol));
-  
-  console.log('Selected stocks:', selectedStocks);
-  console.log('Total shown stocks:', shownStocks.size);
-  console.log('Remaining unseen stocks:', stockUniverse.length - shownStocks.size);
-  
-  const stockPromises = selectedStocks.map(async (symbol) => {
+  // Fetch full stock data for selected symbols
+  const stockPromises = shuffledStocks.map(async (symbol) => {
     try {
       const { data, error } = await supabase.functions.invoke('fetchStockData', {
         body: { symbol }
@@ -104,7 +112,6 @@ export const generateStockBatch = async (count: number, requiredSymbols: string[
         throw error;
       }
 
-      // Ensure the chart data is properly formatted
       const formattedChartData = data.chartData.map((point: any) => ({
         value: parseFloat(point.value)
       }));
