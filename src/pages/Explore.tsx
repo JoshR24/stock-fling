@@ -53,41 +53,41 @@ const Explore = () => {
     }
   }, [searchQuery]);
 
-  const loadInitialNews = async () => {
-    try {
-      const stocks = await generateStockBatch(1);
-      setRecentNews(stocks[0]);
-    } catch (error) {
-      console.error('Failed to load initial news:', error);
-    }
-  };
+const loadInitialNews = async () => {
+  try {
+    const stocks = await generateStockBatch();
+    setRecentNews(stocks[0]);
+  } catch (error) {
+    console.error('Failed to load initial news:', error);
+  }
+};
 
-  const loadStockData = async (symbol: string) => {
-    try {
-      const stocks = await generateStockBatch(1);
-      const companyInfo = companyData.find(company => company.symbol === symbol);
-      if (companyInfo) {
-        setStock({
-          ...stocks[0],
-          symbol: companyInfo.symbol,
-          name: companyInfo.name,
-          change: companyInfo.change,
-        });
-        setSearchQuery("");
-        setSuggestions([]);
-      }
-      toast({
-        title: "Stock Loaded",
-        description: `Successfully loaded data for ${symbol}`,
+const loadStockData = async (symbol: string) => {
+  try {
+    const stocks = await generateStockBatch();
+    const companyInfo = companyData.find(company => company.symbol === symbol);
+    if (companyInfo) {
+      setStock({
+        ...stocks[0],
+        symbol: companyInfo.symbol,
+        name: companyInfo.name,
+        change: companyInfo.change,
       });
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to load stock data. Please try again.",
-        variant: "destructive",
-      });
+      setSearchQuery("");
+      setSuggestions([]);
     }
-  };
+    toast({
+      title: "Stock Loaded",
+      description: `Successfully loaded data for ${symbol}`,
+    });
+  } catch (error) {
+    toast({
+      title: "Error",
+      description: "Failed to load stock data. Please try again.",
+      variant: "destructive",
+    });
+  }
+};
 
   const handleBack = () => {
     setStock(null);
@@ -365,3 +365,4 @@ const Explore = () => {
 };
 
 export default Explore;
+
