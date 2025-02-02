@@ -2,9 +2,10 @@ import { useState, useCallback, useEffect } from "react";
 import { Stock, generateStockBatch } from "@/lib/mockStocks";
 import { StockCard } from "@/components/StockCard";
 import { Portfolio } from "@/components/Portfolio";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { motion, AnimatePresence } from "framer-motion";
 import { Skeleton } from "@/components/ui/skeleton";
+import { supabase } from "@/integrations/supabase/client";
 
 interface IndexProps {
   showPortfolio?: boolean;
@@ -47,17 +48,47 @@ const Index = ({ showPortfolio: initialShowPortfolio = false }: IndexProps) => {
   const handleSwipe = useCallback(async (direction: "left" | "right") => {
     setStocks((prev) => {
       const [current, ...rest] = prev;
-      if (direction === "right") {
+      if (direction === "right" && current) {
+        // Add to local state
         setPortfolio((portfolio) => {
           if (!portfolio.find(s => s.symbol === current.symbol)) {
             return [...portfolio, current];
           }
           return portfolio;
         });
-        toast({
-          title: "Added to Portfolio",
-          description: `${current.symbol} has been added to your portfolio.`,
-        });
+
+        // Save to Supabase
+        const saveToPortfolio = async () => {
+          try {
+            const { error } = await supabase
+              .from('portfolios')
+              .insert({ symbol: current.symbol });
+
+            if (error) {
+              console.error('Error saving to portfolio:', error);
+              toast({
+                title: "Error",
+                description: "Failed to save stock to portfolio. Please try again.",
+                variant: "destructive",
+              });
+              return;
+            }
+
+            toast({
+              title: "Added to Portfolio",
+              description: `${current.symbol} has been added to your portfolio.`,
+            });
+          } catch (error) {
+            console.error('Error in saveToPortfolio:', error);
+            toast({
+              title: "Error",
+              description: "Failed to save stock to portfolio. Please try again.",
+              variant: "destructive",
+            });
+          }
+        };
+
+        saveToPortfolio();
       }
       return rest;
     });
