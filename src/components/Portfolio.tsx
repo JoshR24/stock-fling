@@ -39,10 +39,10 @@ export const Portfolio = ({ stocks }: PortfolioProps) => {
       setBalance(balanceData.balance);
     }
 
-    // Fetch portfolio positions
+    // Fetch portfolio positions with all necessary fields
     const { data: positionsData, error: positionsError } = await supabase
       .from('paper_trading_positions')
-      .select('symbol')
+      .select('symbol, quantity, average_price')
       .eq('user_id', user.id);
 
     if (positionsError) {
