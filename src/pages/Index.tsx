@@ -17,6 +17,29 @@ const Index = ({ showPortfolio: initialShowPortfolio = false }: IndexProps) => {
   const [showPortfolio, setShowPortfolio] = useState(initialShowPortfolio);
   const { toast } = useToast();
 
+  // Load initial stocks
+  const loadStocks = async () => {
+    try {
+      const newStocks = await generateStockBatch(5);
+      setStocks(prev => {
+        const existingSymbols = new Set(prev.map(s => s.symbol));
+        return [...prev, ...newStocks.filter(s => !existingSymbols.has(s.symbol))];
+      });
+    } catch (error) {
+      console.error('Error loading stocks:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load stock data. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Load initial stocks on mount
+  useEffect(() => {
+    loadStocks();
+  }, []);
+
   // Fetch positions data using React Query
   const { data: positionsData, isLoading: isPortfolioLoading } = useQuery({
     queryKey: ['positions'],
@@ -40,36 +63,6 @@ const Index = ({ showPortfolio: initialShowPortfolio = false }: IndexProps) => {
       return data || [];
     },
   });
-
-  // Load initial stocks including all positions
-  const loadStocks = async () => {
-    try {
-      // First, ensure we have stocks for all positions
-      const positionSymbols = positionsData?.map(p => p.symbol) || [];
-      const positionStocks = await generateStockBatch(positionSymbols.length, positionSymbols);
-      
-      // Then generate additional random stocks
-      const additionalStocks = await generateStockBatch(5);
-      
-      setStocks(prev => {
-        const existingSymbols = new Set(prev.map(s => s.symbol));
-        const newStocks = [...positionStocks, ...additionalStocks].filter(s => !existingSymbols.has(s.symbol));
-        return [...prev, ...newStocks];
-      });
-    } catch (error) {
-      console.error('Error loading stocks:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load stock data. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  // Load initial stocks whenever positions data changes
-  useEffect(() => {
-    loadStocks();
-  }, [positionsData]);
 
   // Map positions symbols to stock objects
   const portfolioStocks = stocks.filter(stock => 
