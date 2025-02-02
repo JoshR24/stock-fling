@@ -51,24 +51,26 @@ export const Portfolio = ({ stocks }: PortfolioProps) => {
   }
 
   return (
-    <ScrollArea className="h-full w-full">
-      <div className="space-y-4 p-4 max-w-full">
-        <PaperTradingDisclaimer />
-        <AvailableCash balance={balanceData?.balance || 0} />
-        <PortfolioPositions stocks={stocks} />
-        
-        {selectedStock && (
-          <TradeForm 
-            selectedStock={selectedStock}
-            onTrade={handleTradeComplete}
-          />
-        )}
+    <div className="w-full h-full overflow-hidden">
+      <ScrollArea className="h-full">
+        <div className="space-y-4 p-4">
+          <PaperTradingDisclaimer />
+          <AvailableCash balance={balanceData?.balance || 0} />
+          <PortfolioPositions stocks={stocks} />
+          
+          {selectedStock && (
+            <TradeForm 
+              selectedStock={selectedStock}
+              onTrade={handleTradeComplete}
+            />
+          )}
 
-        <StockList 
-          stocks={stocks}
-          onSelectStock={handleStockSelect}
-        />
-      </div>
-    </ScrollArea>
+          <StockList 
+            stocks={stocks}
+            onSelectStock={handleStockSelect}
+          />
+        </div>
+      </ScrollArea>
+    </div>
   );
 };
