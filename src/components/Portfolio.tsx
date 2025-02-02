@@ -30,12 +30,33 @@ export const Portfolio = ({ stocks }: PortfolioProps) => {
     }
 
     try {
+      // Get the current user
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError) throw userError;
+      if (!user) {
+        toast({
+          title: "Authentication required",
+          description: "Please sign in to trade",
+          variant: "destructive",
+        });
+        return;
+      }
+
       const { data: balanceData, error: balanceError } = await supabase
         .from('paper_trading_balances')
         .select('balance')
-        .single();
+        .eq('user_id', user.id)
+        .maybeSingle();
 
       if (balanceError) throw balanceError;
+      if (!balanceData) {
+        toast({
+          title: "Account error",
+          description: "Could not find your trading balance",
+          variant: "destructive",
+        });
+        return;
+      }
 
       const totalAmount = Number(quantity) * selectedStock.price;
 
@@ -51,8 +72,9 @@ export const Portfolio = ({ stocks }: PortfolioProps) => {
       // Start transaction
       const { data: position, error: positionError } = await supabase
         .from('paper_trading_positions')
-        .select('quantity')
+        .select('quantity, average_price')
         .eq('symbol', selectedStock.symbol)
+        .eq('user_id', user.id)
         .maybeSingle();
 
       if (positionError) throw positionError;
@@ -70,6 +92,7 @@ export const Portfolio = ({ stocks }: PortfolioProps) => {
       const { error: transactionError } = await supabase
         .from('paper_trading_transactions')
         .insert({
+          user_id: user.id,
           symbol: selectedStock.symbol,
           transaction_type: type,
           quantity: Number(quantity),
@@ -89,7 +112,8 @@ export const Portfolio = ({ stocks }: PortfolioProps) => {
           await supabase
             .from('paper_trading_positions')
             .delete()
-            .eq('symbol', selectedStock.symbol);
+            .eq('symbol', selectedStock.symbol)
+            .eq('user_id', user.id);
         } else {
           await supabase
             .from('paper_trading_positions')
@@ -97,14 +121,17 @@ export const Portfolio = ({ stocks }: PortfolioProps) => {
               quantity: newQuantity,
               average_price: type === 'buy'
                 ? ((position.quantity * position.average_price) + totalAmount) / newQuantity
-                : position.average_price
+                : position.average_price,
+              user_id: user.id
             })
-            .eq('symbol', selectedStock.symbol);
+            .eq('symbol', selectedStock.symbol)
+            .eq('user_id', user.id);
         }
       } else if (type === 'buy') {
         await supabase
           .from('paper_trading_positions')
           .insert({
+            user_id: user.id,
             symbol: selectedStock.symbol,
             quantity: Number(quantity),
             average_price: selectedStock.price,
@@ -118,7 +145,8 @@ export const Portfolio = ({ stocks }: PortfolioProps) => {
           balance: type === 'buy'
             ? balanceData.balance - totalAmount
             : balanceData.balance + totalAmount
-        });
+        })
+        .eq('user_id', user.id);
 
       toast({
         title: "Trade executed",
