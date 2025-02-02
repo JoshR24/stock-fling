@@ -11,30 +11,21 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { supabase } from "@/integrations/supabase/client";
 
-const companyData = [
-  { symbol: "AAPL", name: "Apple Inc.", change: 2.5 },
-  { symbol: "GOOGL", name: "Alphabet Inc.", change: -1.2 },
-  { symbol: "MSFT", name: "Microsoft Corporation", change: 1.8 },
-  { symbol: "AMZN", name: "Amazon.com Inc.", change: 0.9 },
-  { symbol: "META", name: "Meta Platforms Inc.", change: -0.7 },
-  { symbol: "TSLA", name: "Tesla Inc.", change: 3.2 },
-  { symbol: "NVDA", name: "NVIDIA Corporation", change: 4.1 }
-];
-
-interface AIRecommendation {
+interface StockSuggestion {
   symbol: string;
   name: string;
-  reason: string;
+  price: number;
+  change: number;
 }
 
 const Explore = () => {
   const [stock, setStock] = useState<any>(null);
   const [recentNews, setRecentNews] = useState<any>(null);
   const [searchQuery, setSearchQuery] = useState("");
-  const [suggestions, setSuggestions] = useState<typeof companyData>([]);
+  const [suggestions, setSuggestions] = useState<StockSuggestion[]>([]);
   const [aiPrompt, setAiPrompt] = useState("");
   const [isLoadingAI, setIsLoadingAI] = useState(false);
-  const [aiRecommendations, setAiRecommendations] = useState<AIRecommendation[]>([]);
+  const [aiRecommendations, setAiRecommendations] = useState<any[]>([]);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -42,20 +33,46 @@ const Explore = () => {
   }, []);
 
   useEffect(() => {
-    if (searchQuery.length > 0) {
-      const filtered = companyData.filter(company => 
-        company.symbol.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        company.name.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-      setSuggestions(filtered);
-    } else {
-      setSuggestions([]);
-    }
-  }, [searchQuery]);
+    const searchStocks = async () => {
+      if (searchQuery.length > 0) {
+        try {
+          const { data: stockData, error } = await supabase
+            .from('stock_data_cache')
+            .select('symbol, data')
+            .or(`symbol.ilike.%${searchQuery}%,data->name.ilike.%${searchQuery}%`)
+            .limit(10);
+
+          if (error) throw error;
+
+          const formattedSuggestions = stockData?.map(stock => ({
+            symbol: stock.symbol,
+            name: stock.data.name as string,
+            price: stock.data.price as number,
+            change: stock.data.change as number
+          })) || [];
+
+          setSuggestions(formattedSuggestions);
+        } catch (error) {
+          console.error('Error searching stocks:', error);
+          toast({
+            title: "Error",
+            description: "Failed to search stocks. Please try again.",
+            variant: "destructive",
+          });
+        }
+      } else {
+        setSuggestions([]);
+      }
+    };
+
+    // Debounce the search to avoid too many requests
+    const timeoutId = setTimeout(searchStocks, 300);
+    return () => clearTimeout(timeoutId);
+  }, [searchQuery, toast]);
 
   const loadInitialNews = async () => {
     try {
-      const stocks = await generateStockBatch(1);
+      const stocks = await generateStockBatch();
       setRecentNews(stocks[0]);
     } catch (error) {
       console.error('Failed to load initial news:', error);
@@ -64,23 +81,37 @@ const Explore = () => {
 
   const loadStockData = async (symbol: string) => {
     try {
-      const stocks = await generateStockBatch(1);
-      const companyInfo = companyData.find(company => company.symbol === symbol);
-      if (companyInfo) {
-        setStock({
-          ...stocks[0],
-          symbol: companyInfo.symbol,
-          name: companyInfo.name,
-          change: companyInfo.change,
-        });
-        setSearchQuery("");
-        setSuggestions([]);
-      }
+      const { data: stockData, error } = await supabase
+        .from('stock_data_cache')
+        .select('*')
+        .eq('symbol', symbol)
+        .single();
+
+      if (error) throw error;
+
+      const formattedStock = {
+        id: stockData.symbol,
+        symbol: stockData.symbol,
+        name: stockData.data.name,
+        price: stockData.data.price,
+        change: stockData.data.change,
+        description: stockData.data.description,
+        news: stockData.data.news,
+        chartData: stockData.data.chartData.map((point: any) => ({
+          value: parseFloat(point.value)
+        }))
+      };
+
+      setStock(formattedStock);
+      setSearchQuery("");
+      setSuggestions([]);
+      
       toast({
         title: "Stock Loaded",
         description: `Successfully loaded data for ${symbol}`,
       });
     } catch (error) {
+      console.error('Error loading stock:', error);
       toast({
         title: "Error",
         description: "Failed to load stock data. Please try again.",
@@ -233,9 +264,7 @@ const Explore = () => {
                         <button
                           key={company.symbol}
                           className="w-full px-4 py-2 text-left hover:bg-accent transition-colors flex items-center justify-between"
-                          onClick={() => {
-                            loadStockData(company.symbol);
-                          }}
+                          onClick={() => loadStockData(company.symbol)}
                         >
                           <div>
                             <div className="font-medium">{company.symbol}</div>
