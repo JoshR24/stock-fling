@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
+import { Button } from "@/components/ui/button";
 
 interface IndexProps {
   showPortfolio?: boolean;
@@ -16,6 +17,35 @@ const Index = ({ showPortfolio: initialShowPortfolio = false }: IndexProps) => {
   const [stocks, setStocks] = useState<Stock[]>([]);
   const [showPortfolio, setShowPortfolio] = useState(initialShowPortfolio);
   const { toast } = useToast();
+  const [isInitializingCache, setIsInitializingCache] = useState(false);
+
+  // Function to initialize the stock cache
+  const initializeStockCache = async () => {
+    try {
+      setIsInitializingCache(true);
+      const { data, error } = await supabase.functions.invoke('fetchStockData', {
+        body: { initialize: true }
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Cache Initialization Started",
+        description: "The stock cache is being populated in the background. This may take a few minutes.",
+      });
+
+      console.log('Cache initialization response:', data);
+    } catch (error) {
+      console.error('Error initializing cache:', error);
+      toast({
+        title: "Error",
+        description: "Failed to initialize stock cache. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsInitializingCache(false);
+    }
+  };
 
   // Fetch positions data using React Query
   const { data: positionsData } = useQuery({
@@ -143,9 +173,19 @@ const Index = ({ showPortfolio: initialShowPortfolio = false }: IndexProps) => {
   return (
     <div className="min-h-screen bg-background p-4 pb-16">
       <div className="max-w-md mx-auto h-[calc(100vh-8rem)]">
-        <h1 className="text-2xl font-bold mb-4">
-          {showPortfolio ? "Portfolio" : "Stockr"}
-        </h1>
+        <div className="flex justify-between items-center mb-4">
+          <h1 className="text-2xl font-bold">
+            {showPortfolio ? "Portfolio" : "Stockr"}
+          </h1>
+          <Button 
+            onClick={initializeStockCache} 
+            disabled={isInitializingCache}
+            variant="outline"
+            size="sm"
+          >
+            {isInitializingCache ? "Initializing..." : "Initialize Stock Cache"}
+          </Button>
+        </div>
 
         <AnimatePresence mode="wait">
           {showPortfolio ? (
