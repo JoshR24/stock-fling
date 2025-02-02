@@ -67,21 +67,21 @@ export const generateStockBatch = async (count: number, requiredSymbols: string[
   console.log('Generating stock batch with required symbols:', requiredSymbols);
   await resetShownStocksIfNeeded();
   
-  // Get user's portfolio stocks to exclude them
+  // Get user's positions to exclude them
   const { data: { user } } = await supabase.auth.getUser();
-  const { data: portfolioStocks } = await supabase
-    .from('portfolios')
+  const { data: positions } = await supabase
+    .from('paper_trading_positions')
     .select('symbol')
     .eq('user_id', user?.id);
 
-  const portfolioSymbols = new Set(portfolioStocks?.map(stock => stock.symbol) || []);
-  console.log('Portfolio symbols to exclude:', portfolioSymbols);
+  const positionSymbols = new Set(positions?.map(position => position.symbol) || []);
+  console.log('Position symbols to exclude:', positionSymbols);
   
-  // Always include required symbols (portfolio stocks)
+  // Always include required symbols (position stocks)
   const { data: availableStocks } = await supabase
     .from('stock_data_cache')
     .select('symbol')
-    .not('symbol', 'in', `(${Array.from(portfolioSymbols).map(s => `'${s}'`).join(',')})`)
+    .not('symbol', 'in', `(${Array.from(positionSymbols).map(s => `'${s}'`).join(',')})`)
     .not('symbol', 'in', `(${Array.from(shownStocks).map(s => `'${s}'`).join(',')})`)
     .order('last_updated', { ascending: false });
 
@@ -121,14 +121,21 @@ export const generateStockBatch = async (count: number, requiredSymbols: string[
         throw new Error(`No cached data found for ${symbol}`);
       }
 
+      const stockData = cachedData.data as any;
+
       // Ensure the chart data is properly formatted
-      const formattedChartData = cachedData.data.chartData.map((point: any) => ({
+      const formattedChartData = stockData.chartData.map((point: any) => ({
         value: parseFloat(point.value)
       }));
 
       return {
         id: symbol,
-        ...cachedData.data,
+        symbol: symbol,
+        name: stockData.name,
+        price: stockData.price,
+        change: stockData.change,
+        description: stockData.description,
+        news: stockData.news,
         chartData: formattedChartData
       };
     } catch (error) {
