@@ -4,7 +4,7 @@ import { ScrollArea } from "./ui/scroll-area";
 import { Area, AreaChart, ResponsiveContainer, YAxis } from "recharts";
 import { Badge } from "./ui/badge";
 import { Button } from "./ui/button";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Input } from "./ui/input";
 import { DollarSign, Minus, Plus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
@@ -18,7 +18,35 @@ interface PortfolioProps {
 export const Portfolio = ({ stocks }: PortfolioProps) => {
   const [selectedStock, setSelectedStock] = useState<Stock | null>(null);
   const [quantity, setQuantity] = useState<string>("");
+  const [balance, setBalance] = useState<number>(0);
   const { toast } = useToast();
+
+  useEffect(() => {
+    const fetchBalance = async () => {
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user) {
+        console.error('Error fetching user:', userError);
+        return;
+      }
+
+      const { data: balanceData, error: balanceError } = await supabase
+        .from('paper_trading_balances')
+        .select('balance')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (balanceError) {
+        console.error('Error fetching balance:', balanceError);
+        return;
+      }
+
+      if (balanceData) {
+        setBalance(balanceData.balance);
+      }
+    };
+
+    fetchBalance();
+  }, []);
 
   const handleTrade = async (type: 'buy' | 'sell') => {
     if (!selectedStock || !quantity || isNaN(Number(quantity))) {
@@ -177,6 +205,16 @@ export const Portfolio = ({ stocks }: PortfolioProps) => {
   return (
     <ScrollArea className="h-full">
       <div className="space-y-4 p-4">
+        <Card className="p-4">
+          <div className="flex items-center gap-2 text-muted-foreground mb-2">
+            <DollarSign className="h-4 w-4" />
+            <span>Available Cash</span>
+          </div>
+          <span className="text-2xl font-bold">
+            ${balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </span>
+        </Card>
+
         <PortfolioPositions stocks={stocks} />
 
         {selectedStock && (
