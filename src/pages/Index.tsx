@@ -15,8 +15,30 @@ interface IndexProps {
 const Index = ({ showPortfolio: initialShowPortfolio = false }: IndexProps) => {
   const [stocks, setStocks] = useState<Stock[]>([]);
   const [showPortfolio, setShowPortfolio] = useState(initialShowPortfolio);
-  const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
+
+  // Load initial stocks
+  const loadStocks = async () => {
+    try {
+      const newStocks = await generateStockBatch(5);
+      setStocks(prev => {
+        const existingSymbols = new Set(prev.map(s => s.symbol));
+        return [...prev, ...newStocks.filter(s => !existingSymbols.has(s.symbol))];
+      });
+    } catch (error) {
+      console.error('Error loading stocks:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load stock data. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Load initial stocks on mount
+  useEffect(() => {
+    loadStocks();
+  }, []);
 
   // Fetch portfolio data using React Query
   const { data: portfolioData, isLoading: isPortfolioLoading } = useQuery({
@@ -25,6 +47,8 @@ const Index = ({ showPortfolio: initialShowPortfolio = false }: IndexProps) => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return [];
 
+      console.log('Fetching portfolio for user:', user.id);
+      
       const { data, error } = await supabase
         .from('portfolios')
         .select('symbol')
@@ -45,32 +69,12 @@ const Index = ({ showPortfolio: initialShowPortfolio = false }: IndexProps) => {
     portfolioData?.some(item => item.symbol === stock.symbol)
   );
 
+  console.log('Current stocks:', stocks);
+  console.log('Portfolio stocks:', portfolioStocks);
+
   useEffect(() => {
     setShowPortfolio(initialShowPortfolio);
   }, [initialShowPortfolio]);
-
-  const loadStocks = async () => {
-    try {
-      setIsLoading(true);
-      const newStocks = await generateStockBatch(5);
-      setStocks(prev => {
-        const existingSymbols = new Set(prev.map(s => s.symbol));
-        return [...prev, ...newStocks.filter(s => !existingSymbols.has(s.symbol))];
-      });
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to load stock data. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadStocks();
-  }, []);
 
   const handleSwipe = useCallback(async (direction: "left" | "right") => {
     setStocks((prev) => {
@@ -79,7 +83,6 @@ const Index = ({ showPortfolio: initialShowPortfolio = false }: IndexProps) => {
         // Save to Supabase
         const saveToPortfolio = async () => {
           try {
-            // Get the current user
             const { data: { user } } = await supabase.auth.getUser();
             
             if (!user) {
@@ -128,15 +131,7 @@ const Index = ({ showPortfolio: initialShowPortfolio = false }: IndexProps) => {
     });
 
     if (stocks.length <= 2) {
-      try {
-        await loadStocks();
-      } catch (error) {
-        toast({
-          title: "Error",
-          description: "Failed to load more stocks. Please try again.",
-          variant: "destructive",
-        });
-      }
+      await loadStocks();
     }
   }, [stocks.length, toast]);
 
@@ -157,7 +152,13 @@ const Index = ({ showPortfolio: initialShowPortfolio = false }: IndexProps) => {
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
               className="h-[calc(100%-4rem)]"
             >
-              <Portfolio stocks={portfolioStocks} />
+              {isPortfolioLoading ? (
+                <div className="w-full h-full">
+                  <Skeleton className="w-full h-full rounded-lg" />
+                </div>
+              ) : (
+                <Portfolio stocks={portfolioStocks} />
+              )}
             </motion.div>
           ) : (
             <motion.div
@@ -168,7 +169,7 @@ const Index = ({ showPortfolio: initialShowPortfolio = false }: IndexProps) => {
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
               className="relative h-[calc(100%-4rem)]"
             >
-              {isLoading ? (
+              {stocks.length === 0 ? (
                 <div className="w-full h-full">
                   <Skeleton className="w-full h-full rounded-lg" />
                 </div>
