@@ -1,10 +1,10 @@
-import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { Card } from "../ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
 import { DollarSign, TrendingDown, TrendingUp } from "lucide-react";
 import { Stock } from "@/lib/mockStocks";
 import { Badge } from "../ui/badge";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Position {
   symbol: string;
@@ -17,49 +17,49 @@ interface PortfolioPositionsProps {
 }
 
 export const PortfolioPositions = ({ stocks }: PortfolioPositionsProps) => {
-  const [positions, setPositions] = useState<Position[]>([]);
-  const [totalValue, setTotalValue] = useState(0);
-  const [totalGainLoss, setTotalGainLoss] = useState(0);
-
-  useEffect(() => {
-    const fetchPositions = async () => {
+  const { data: positions = [], isLoading } = useQuery({
+    queryKey: ['positions'],
+    queryFn: async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
+      if (!user) throw new Error('User not authenticated');
 
       const { data, error } = await supabase
         .from('paper_trading_positions')
         .select('symbol, quantity, average_price')
         .eq('user_id', user.id);
 
-      if (error) {
-        console.error('Error fetching positions:', error);
-        return;
-      }
-
+      if (error) throw error;
       console.log('Fetched positions:', data);
-      setPositions(data || []);
-    };
+      return data || [];
+    }
+  });
 
-    fetchPositions();
-  }, []);
+  // Calculate total value and gain/loss
+  const totalValue = positions.reduce((sum, position) => {
+    const stock = stocks.find(s => s.symbol === position.symbol);
+    if (stock) {
+      return sum + (position.quantity * stock.price);
+    }
+    return sum;
+  }, 0);
 
-  useEffect(() => {
-    let totalVal = 0;
-    let totalGL = 0;
+  const totalGainLoss = positions.reduce((sum, position) => {
+    const stock = stocks.find(s => s.symbol === position.symbol);
+    if (stock) {
+      const currentValue = position.quantity * stock.price;
+      const costBasis = position.quantity * position.average_price;
+      return sum + (currentValue - costBasis);
+    }
+    return sum;
+  }, 0);
 
-    positions.forEach(position => {
-      const stock = stocks.find(s => s.symbol === position.symbol);
-      if (stock) {
-        const currentValue = position.quantity * stock.price;
-        const costBasis = position.quantity * position.average_price;
-        totalVal += currentValue;
-        totalGL += currentValue - costBasis;
-      }
-    });
-
-    setTotalValue(totalVal);
-    setTotalGainLoss(totalGL);
-  }, [positions, stocks]);
+  if (isLoading) {
+    return (
+      <Card className="p-4">
+        <p className="text-center text-muted-foreground">Loading portfolio...</p>
+      </Card>
+    );
+  }
 
   if (positions.length === 0) {
     return (
