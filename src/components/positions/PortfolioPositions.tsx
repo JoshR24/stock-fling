@@ -20,46 +20,19 @@ export const PortfolioPositions = ({ stocks }: PortfolioPositionsProps) => {
   const { data: positions = [], isLoading, error } = useQuery({
     queryKey: ['positions'],
     queryFn: async () => {
-      // Log authentication state
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      console.log('Auth check - Current user:', user);
-      
-      if (userError) {
-        console.error('Authentication error:', userError);
-        throw userError;
-      }
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('User not authenticated');
 
-      if (!user) {
-        console.error('No authenticated user found');
-        throw new Error('User not authenticated');
-      }
-
-      console.log('Fetching positions for user:', user.id);
-
-      // Fetch positions with detailed logging
       const { data, error: positionsError } = await supabase
         .from('paper_trading_positions')
         .select('*')
         .eq('user_id', user.id);
 
-      if (positionsError) {
-        console.error('Positions fetch error:', positionsError);
-        throw positionsError;
-      }
-
-      console.log('Fetched positions:', data);
+      if (positionsError) throw positionsError;
       return data as Position[] || [];
-    },
-    retry: 1, // Retry once if the query fails
-    refetchOnWindowFocus: true // Refetch when window regains focus
+    }
   });
 
-  // Log any query errors
-  if (error) {
-    console.error('Query error:', error);
-  }
-
-  // Calculate total value and gain/loss
   const totalValue = positions.reduce((sum, position) => {
     const stock = stocks.find(s => s.symbol === position.symbol);
     if (stock) {
@@ -80,7 +53,7 @@ export const PortfolioPositions = ({ stocks }: PortfolioPositionsProps) => {
 
   if (isLoading) {
     return (
-      <Card className="p-4">
+      <Card className="p-2">
         <p className="text-center text-muted-foreground">Loading portfolio...</p>
       </Card>
     );
@@ -88,79 +61,81 @@ export const PortfolioPositions = ({ stocks }: PortfolioPositionsProps) => {
 
   if (!positions || positions.length === 0) {
     return (
-      <Card className="p-4">
+      <Card className="p-2">
         <p className="text-center text-muted-foreground">No positions found. Start trading to see your portfolio here!</p>
       </Card>
     );
   }
 
   return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-4">
-        <Card className="p-4">
-          <div className="flex items-center gap-2 text-muted-foreground mb-2">
+    <div className="space-y-2">
+      <div className="grid grid-cols-2 gap-2">
+        <Card className="p-2">
+          <div className="flex items-center gap-1 text-muted-foreground mb-1 text-sm">
             <DollarSign className="h-4 w-4" />
             <span>Portfolio Value</span>
           </div>
-          <span className="text-2xl font-bold">
+          <span className="text-lg font-bold">
             ${totalValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </span>
         </Card>
-        <Card className="p-4">
-          <div className="flex items-center gap-2 text-muted-foreground mb-2">
+        <Card className="p-2">
+          <div className="flex items-center gap-1 text-muted-foreground mb-1 text-sm">
             {totalGainLoss >= 0 ? (
               <TrendingUp className="h-4 w-4 text-green-500" />
             ) : (
               <TrendingDown className="h-4 w-4 text-red-500" />
             )}
-            <span>Total Gain/Loss</span>
+            <span>Total G/L</span>
           </div>
-          <span className={`text-2xl font-bold ${totalGainLoss >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+          <span className={`text-lg font-bold ${totalGainLoss >= 0 ? 'text-green-500' : 'text-red-500'}`}>
             ${Math.abs(totalGainLoss).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </span>
         </Card>
       </div>
 
-      <Card className="p-4">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Symbol</TableHead>
-              <TableHead>Quantity</TableHead>
-              <TableHead>Avg Price</TableHead>
-              <TableHead>Current Price</TableHead>
-              <TableHead>Gain/Loss</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {positions.map((position) => {
-              const stock = stocks.find(s => s.symbol === position.symbol);
-              if (!stock) return null;
+      <Card className="p-2">
+        <div className="overflow-x-auto -mx-2">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="text-xs">Symbol</TableHead>
+                <TableHead className="text-xs text-right">Qty</TableHead>
+                <TableHead className="text-xs text-right">Avg</TableHead>
+                <TableHead className="text-xs text-right">Price</TableHead>
+                <TableHead className="text-xs text-right">G/L</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {positions.map((position) => {
+                const stock = stocks.find(s => s.symbol === position.symbol);
+                if (!stock) return null;
 
-              const currentValue = position.quantity * stock.price;
-              const costBasis = position.quantity * position.average_price;
-              const gainLoss = currentValue - costBasis;
-              const gainLossPercent = (gainLoss / costBasis) * 100;
+                const currentValue = position.quantity * stock.price;
+                const costBasis = position.quantity * position.average_price;
+                const gainLoss = currentValue - costBasis;
+                const gainLossPercent = (gainLoss / costBasis) * 100;
 
-              return (
-                <TableRow key={position.symbol}>
-                  <TableCell className="font-medium">{position.symbol}</TableCell>
-                  <TableCell>{position.quantity}</TableCell>
-                  <TableCell>${position.average_price.toFixed(2)}</TableCell>
-                  <TableCell>${stock.price.toFixed(2)}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <span>${Math.abs(gainLoss).toFixed(2)}</span>
-                      <Badge variant={gainLoss >= 0 ? "default" : "destructive"}>
-                        {gainLoss >= 0 ? "+" : "-"}{Math.abs(gainLossPercent).toFixed(1)}%
-                      </Badge>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
+                return (
+                  <TableRow key={position.symbol}>
+                    <TableCell className="font-medium text-xs py-2">{position.symbol}</TableCell>
+                    <TableCell className="text-right text-xs py-2">{position.quantity}</TableCell>
+                    <TableCell className="text-right text-xs py-2">${position.average_price.toFixed(2)}</TableCell>
+                    <TableCell className="text-right text-xs py-2">${stock.price.toFixed(2)}</TableCell>
+                    <TableCell className="text-right text-xs py-2">
+                      <div className="flex items-center justify-end gap-1">
+                        <span>${Math.abs(gainLoss).toFixed(2)}</span>
+                        <Badge variant={gainLoss >= 0 ? "default" : "destructive"} className="text-[10px] px-1 py-0">
+                          {gainLoss >= 0 ? "+" : "-"}{Math.abs(gainLossPercent).toFixed(1)}%
+                        </Badge>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
       </Card>
     </div>
   );

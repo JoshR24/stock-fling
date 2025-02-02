@@ -7,12 +7,12 @@ interface AvailableCashProps {
 
 export const AvailableCash = ({ balance }: AvailableCashProps) => {
   return (
-    <Card className="p-4">
-      <div className="flex items-center gap-2 text-muted-foreground mb-2">
+    <Card className="p-2">
+      <div className="flex items-center gap-1 text-muted-foreground mb-1 text-sm">
         <DollarSign className="h-4 w-4" />
         <span>Available Cash</span>
       </div>
-      <span className="text-2xl font-bold">
+      <span className="text-lg font-bold">
         ${balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
       </span>
     </Card>

@@ -16,7 +16,6 @@ interface PortfolioProps {
 export const Portfolio = ({ stocks }: PortfolioProps) => {
   const [selectedStock, setSelectedStock] = useState<Stock | null>(null);
 
-  // Use React Query for data fetching
   const { data: balanceData } = useQuery({
     queryKey: ['balance'],
     queryFn: async () => {
@@ -51,9 +50,9 @@ export const Portfolio = ({ stocks }: PortfolioProps) => {
   }
 
   return (
-    <div className="h-[calc(100vh-4rem)]">
+    <div className="h-[calc(100vh-4rem)] w-full">
       <ScrollArea className="h-full">
-        <div className="p-4 space-y-4">
+        <div className="p-2 space-y-2">
           <PaperTradingDisclaimer />
           <AvailableCash balance={balanceData?.balance || 0} />
           <PortfolioPositions stocks={stocks} />
