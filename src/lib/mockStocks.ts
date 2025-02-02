@@ -52,8 +52,12 @@ const stockUniverse = [
 let shownStocks = new Set<string>();
 
 // Reset shown stocks if we've shown all available stocks
-const resetShownStocksIfNeeded = () => {
-  if (shownStocks.size >= stockUniverse.length) {
+const resetShownStocksIfNeeded = async () => {
+  const { count } = await supabase
+    .from('stock_data_cache')
+    .select('*', { count: 'exact', head: true });
+    
+  if (shownStocks.size >= (count || 0)) {
     console.log('Resetting shown stocks history - all stocks have been shown');
     shownStocks.clear();
   }
@@ -61,7 +65,7 @@ const resetShownStocksIfNeeded = () => {
 
 export const generateStockBatch = async (count: number, requiredSymbols: string[] = []): Promise<Stock[]> => {
   console.log('Generating stock batch with required symbols:', requiredSymbols);
-  resetShownStocksIfNeeded();
+  await resetShownStocksIfNeeded();
   
   // Get user's portfolio stocks to exclude them
   const { data: { user } } = await supabase.auth.getUser();
@@ -74,54 +78,57 @@ export const generateStockBatch = async (count: number, requiredSymbols: string[
   console.log('Portfolio symbols to exclude:', portfolioSymbols);
   
   // Always include required symbols (portfolio stocks)
-  const portfolioStocksToInclude = requiredSymbols.filter(symbol => 
-    stockUniverse.includes(symbol)
-  );
-  
-  // Get available stocks (not required and not in portfolio)
-  const availableStocks = stockUniverse.filter(symbol => 
-    !requiredSymbols.includes(symbol) && !portfolioSymbols.has(symbol)
-  );
+  const { data: availableStocks } = await supabase
+    .from('stock_data_cache')
+    .select('symbol')
+    .not('symbol', 'in', `(${Array.from(portfolioSymbols).map(s => `'${s}'`).join(',')})`)
+    .not('symbol', 'in', `(${Array.from(shownStocks).map(s => `'${s}'`).join(',')})`)
+    .order('last_updated', { ascending: false });
+
+  console.log('Available stocks from cache:', availableStocks);
   
   // Shuffle available stocks
-  const shuffledStocks = availableStocks.sort(() => Math.random() - 0.5);
+  const shuffledStocks = (availableStocks || [])
+    .map(stock => stock.symbol)
+    .sort(() => Math.random() - 0.5);
   
   // Calculate how many additional stocks we need
-  const remainingCount = count - portfolioStocksToInclude.length;
+  const remainingCount = count - requiredSymbols.length;
   
   // Get additional random stocks
   const additionalStocks = remainingCount > 0 
     ? shuffledStocks.slice(0, remainingCount)
     : [];
   
-  const selectedStocks = [...portfolioStocksToInclude, ...additionalStocks];
+  const selectedStocks = [...requiredSymbols, ...additionalStocks];
   
   // Add non-portfolio stocks to shown stocks set
   additionalStocks.forEach(symbol => shownStocks.add(symbol));
   
   console.log('Selected stocks:', selectedStocks);
   console.log('Total shown stocks:', shownStocks.size);
-  console.log('Remaining unseen stocks:', stockUniverse.length - shownStocks.size);
   
   const stockPromises = selectedStocks.map(async (symbol) => {
     try {
-      const { data, error } = await supabase.functions.invoke('fetchStockData', {
-        body: { symbol }
-      });
+      // First try to get from cache
+      const { data: cachedData } = await supabase
+        .from('stock_data_cache')
+        .select('data')
+        .eq('symbol', symbol)
+        .single();
 
-      if (error) {
-        console.error(`Error fetching data for ${symbol}:`, error);
-        throw error;
+      if (!cachedData) {
+        throw new Error(`No cached data found for ${symbol}`);
       }
 
       // Ensure the chart data is properly formatted
-      const formattedChartData = data.chartData.map((point: any) => ({
+      const formattedChartData = cachedData.data.chartData.map((point: any) => ({
         value: parseFloat(point.value)
       }));
 
       return {
         id: symbol,
-        ...data,
+        ...cachedData.data,
         chartData: formattedChartData
       };
     } catch (error) {
