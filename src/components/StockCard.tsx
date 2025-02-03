@@ -7,7 +7,10 @@ import { StockChart } from "./stock/StockChart";
 import { StockPrice } from "./stock/StockPrice";
 import { StockNews } from "./stock/StockNews";
 import { SwipeInstructions } from "./stock/SwipeInstructions";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { StockDataCacheEntry } from "@/integrations/supabase/types";
+import { useQuery } from "@tanstack/react-query";
 
 interface StockCardProps {
   stock: Stock;
@@ -30,6 +33,55 @@ export const StockCard = ({ stock, onSwipe }: StockCardProps) => {
     [0, 100, 200],
     [0, 0.15, 0.3]
   );
+
+  // Fetch real-time stock data
+  const { data: stockData } = useQuery({
+    queryKey: ['stockPrice', stock.symbol],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('stock_data_cache')
+        .select('*')
+        .eq('symbol', stock.symbol)
+        .single();
+
+      if (error) throw error;
+
+      return data.data as StockDataCacheEntry;
+    },
+    refetchInterval: 60000, // Refetch every minute
+  });
+
+  // Set up real-time listener for stock price updates
+  useEffect(() => {
+    const channel = supabase
+      .channel('stock-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'stock_data_cache',
+          filter: `symbol=eq.${stock.symbol}`
+        },
+        (payload) => {
+          console.log('Received stock update:', payload);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [stock.symbol]);
+
+  // Update stock data with real-time values
+  const updatedStock: Stock = {
+    ...stock,
+    price: stockData?.price ?? stock.price,
+    change: stockData?.change ?? stock.change,
+    chartData: stockData?.chartData ?? stock.chartData,
+    news: stockData?.news ?? stock.news,
+  };
 
   return (
     <motion.div
@@ -70,13 +122,13 @@ export const StockCard = ({ stock, onSwipe }: StockCardProps) => {
         
         <ScrollArea className="h-full">
           <div className="p-3 space-y-2">
-            <StockHeader stock={stock} timeframe={currentTimeframe} />
-            <StockChart stock={stock} onTimeframeChange={setCurrentTimeframe} />
-            <StockPrice stock={stock} />
+            <StockHeader stock={updatedStock} timeframe={currentTimeframe} />
+            <StockChart stock={updatedStock} onTimeframeChange={setCurrentTimeframe} />
+            <StockPrice stock={updatedStock} />
             <div className="mt-2 text-sm text-muted-foreground leading-snug">
-              {stock.description}
+              {updatedStock.description}
             </div>
-            <StockNews stock={stock} />
+            <StockNews stock={updatedStock} />
             <SwipeInstructions />
           </div>
         </ScrollArea>
