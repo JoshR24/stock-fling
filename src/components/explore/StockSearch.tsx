@@ -5,6 +5,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Search } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { StockDataCacheEntry } from "@/integrations/supabase/types";
 
 interface StockSuggestion {
   symbol: string;
@@ -36,9 +37,9 @@ export const StockSearch = ({ onStockSelect }: StockSearchProps) => {
 
           const formattedSuggestions = (stockData)?.map(stock => ({
             symbol: stock.symbol,
-            name: stock.data.name as string,
-            price: stock.data.price as number,
-            change: stock.data.change as number
+            name: (stock.data as StockDataCacheEntry).name,
+            price: (stock.data as StockDataCacheEntry).price,
+            change: (stock.data as StockDataCacheEntry).change
           })) || [];
 
           setSuggestions(formattedSuggestions);

@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { StockSearch } from "@/components/explore/StockSearch";
 import { AIRecommendations } from "@/components/explore/AIRecommendations";
 import { StockCategories } from "@/components/explore/StockCategories";
+import { StockDataCacheEntry } from "@/integrations/supabase/types";
 
 const Explore = () => {
   const [stock, setStock] = useState<any>(null);
@@ -42,12 +43,12 @@ const Explore = () => {
       const formattedStock = {
         id: stockData.symbol,
         symbol: stockData.symbol,
-        name: stockData.data.name,
-        price: stockData.data.price,
-        change: stockData.data.change,
-        description: stockData.data.description,
-        news: stockData.data.news,
-        chartData: stockData.data.chartData.map((point: any) => ({
+        name: (stockData.data as StockDataCacheEntry).name,
+        price: (stockData.data as StockDataCacheEntry).price,
+        change: (stockData.data as StockDataCacheEntry).change,
+        description: (stockData.data as StockDataCacheEntry).description,
+        news: (stockData.data as StockDataCacheEntry).news,
+        chartData: (stockData.data as StockDataCacheEntry).chartData.map((point: any) => ({
           value: parseFloat(point.value)
         }))
       };

@@ -6,6 +6,24 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[]
 
+export interface StockDataCacheEntry {
+  name: string;
+  price: number;
+  change: number;
+  description: string;
+  news: {
+    id: string;
+    title: string;
+    summary: string;
+    date: string;
+    url: string;
+  }[];
+  chartData: {
+    date?: string;
+    value: number;
+  }[];
+}
+
 export type Database = {
   public: {
     Tables: {
@@ -337,19 +355,19 @@ export type Database = {
       }
       stock_data_cache: {
         Row: {
-          data: Json
-          last_updated: string
-          symbol: string
+          symbol: string;
+          data: StockDataCacheEntry;
+          last_updated: string;
         }
         Insert: {
-          data: Json
-          last_updated?: string
-          symbol: string
+          symbol: string;
+          data: StockDataCacheEntry;
+          last_updated?: string;
         }
         Update: {
-          data?: Json
-          last_updated?: string
-          symbol?: string
+          symbol?: string;
+          data?: StockDataCacheEntry;
+          last_updated?: string;
         }
         Relationships: []
       }
@@ -378,7 +396,7 @@ export type Tables<
   TableName extends PublicTableNameOrOptions extends { schema: keyof Database }
     ? keyof (Database[PublicTableNameOrOptions["schema"]]["Tables"] &
         Database[PublicTableNameOrOptions["schema"]]["Views"])
-    : never = never,
+    : never,
 > = PublicTableNameOrOptions extends { schema: keyof Database }
   ? (Database[PublicTableNameOrOptions["schema"]]["Tables"] &
       Database[PublicTableNameOrOptions["schema"]]["Views"])[TableName] extends {
@@ -432,8 +450,8 @@ export type TablesUpdate<
     : never
   : PublicTableNameOrOptions extends keyof PublicSchema["Tables"]
     ? PublicSchema["Tables"][PublicTableNameOrOptions] extends {
-        Update: infer U
-      }
+      Update: infer U
+    }
       ? U
       : never
     : never
