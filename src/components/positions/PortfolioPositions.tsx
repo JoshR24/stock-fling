@@ -5,7 +5,7 @@ import { Stock } from "@/lib/mockStocks";
 import { Badge } from "../ui/badge";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { StockDataCacheEntry } from "@/integrations/supabase/types";
+import { castToStockDataCacheEntry } from "@/integrations/supabase/types";
 import { useToast } from "@/hooks/use-toast";
 
 interface Position {
@@ -58,9 +58,8 @@ export const PortfolioPositions = ({ stocks }: PortfolioPositionsProps) => {
           throw error;
         }
 
-        // Properly cast the data to our expected type
         return (data || []).map(item => {
-          const stockData = item.data as StockDataCacheEntry;
+          const stockData = castToStockDataCacheEntry(item.data);
           return {
             symbol: item.symbol,
             currentPrice: stockData.price,

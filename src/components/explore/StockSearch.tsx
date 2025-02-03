@@ -1,101 +1,69 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Input } from "@/components/ui/input";
-import { Card } from "@/components/ui/card";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Search } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { castToStockDataCacheEntry } from "@/integrations/supabase/types";
 import { useToast } from "@/hooks/use-toast";
-import { StockDataCacheEntry } from "@/integrations/supabase/types";
 
-interface StockSuggestion {
-  symbol: string;
-  name: string;
-  price: number;
-  change: number;
-}
-
-interface StockSearchProps {
-  onStockSelect: (symbol: string) => void;
-}
-
-export const StockSearch = ({ onStockSelect }: StockSearchProps) => {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [suggestions, setSuggestions] = useState<StockSuggestion[]>([]);
+export const StockSearch = () => {
+  const [searchTerm, setSearchTerm] = useState("");
   const { toast } = useToast();
 
-  useEffect(() => {
-    const searchStocks = async () => {
-      if (searchQuery.length > 0) {
-        try {
-          const { data: stockData, error } = await supabase
-            .from('stock_data_cache')
-            .select('symbol, data')
-            .or(`symbol.ilike.%${searchQuery}%,data->>name.ilike.%${searchQuery}%`)
-            .limit(10);
+  const { data: searchResults } = useQuery({
+    queryKey: ['stockSearch', searchTerm],
+    queryFn: async () => {
+      if (!searchTerm) return [];
 
-          if (error) throw error;
+      try {
+        const { data, error } = await supabase
+          .from('stock_data_cache')
+          .select('*')
+          .ilike('symbol', `${searchTerm}%`)
+          .limit(5);
 
-          const formattedSuggestions = stockData?.map(stock => {
-            const stockData = stock.data as StockDataCacheEntry;
-            return {
-              symbol: stock.symbol,
-              name: stockData.name,
-              price: stockData.price,
-              change: stockData.change
-            };
-          }) || [];
+        if (error) throw error;
 
-          setSuggestions(formattedSuggestions);
-        } catch (error) {
-          console.error('Error searching stocks:', error);
-          toast({
-            title: "Error",
-            description: "Failed to search stocks. Please try again.",
-            variant: "destructive",
-          });
-        }
-      } else {
-        setSuggestions([]);
+        return data.map(item => castToStockDataCacheEntry(item.data));
+      } catch (error) {
+        console.error('Error searching stocks:', error);
+        toast({
+          title: "Error",
+          description: "Failed to search stocks. Please try again.",
+          variant: "destructive",
+        });
+        return [];
       }
-    };
-
-    const timeoutId = setTimeout(searchStocks, 300);
-    return () => clearTimeout(timeoutId);
-  }, [searchQuery, toast]);
+    },
+    enabled: searchTerm.length > 0
+  });
 
   return (
     <div className="relative">
       <div className="relative">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+        <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
         <Input
-          type="text"
-          placeholder="Search stocks or companies..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-10"
+          placeholder="Search stocks..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="pl-8"
         />
       </div>
-      
-      {suggestions.length > 0 && (
-        <Card className="absolute w-full mt-1 z-50">
-          <ScrollArea className="max-h-[200px]">
-            {suggestions.map((company) => (
-              <button
-                key={company.symbol}
-                className="w-full px-4 py-2 text-left hover:bg-accent transition-colors flex items-center justify-between"
-                onClick={() => onStockSelect(company.symbol)}
-              >
-                <div>
-                  <div className="font-medium">{company.symbol}</div>
-                  <div className="text-sm text-muted-foreground">{company.name}</div>
-                </div>
-                <span className={`text-sm ${company.change >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-                  {company.change >= 0 ? '+' : ''}{company.change.toFixed(1)}%
-                </span>
-              </button>
-            ))}
-          </ScrollArea>
-        </Card>
+      {searchResults && searchResults.length > 0 && (
+        <div className="absolute w-full mt-1 bg-background border rounded-md shadow-lg z-10">
+          {searchResults.map((stock) => (
+            <div
+              key={stock.symbol}
+              className="p-2 hover:bg-muted cursor-pointer"
+              onClick={() => {
+                // Handle stock selection
+              }}
+            >
+              <div className="font-medium">{stock.symbol}</div>
+              <div className="text-sm text-muted-foreground">{stock.name}</div>
+            </div>
+          ))}
+        </div>
       )}
     </div>
   );
