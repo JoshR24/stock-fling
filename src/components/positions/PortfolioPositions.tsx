@@ -6,6 +6,7 @@ import { Badge } from "../ui/badge";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { StockDataCacheEntry } from "@/integrations/supabase/types";
+import { useToast } from "@/hooks/use-toast";
 
 interface Position {
   symbol: string;
@@ -18,6 +19,8 @@ interface PortfolioPositionsProps {
 }
 
 export const PortfolioPositions = ({ stocks }: PortfolioPositionsProps) => {
+  const { toast } = useToast();
+
   const { data: positions = [], isLoading } = useQuery({
     queryKey: ['positions'],
     queryFn: async () => {
@@ -40,16 +43,30 @@ export const PortfolioPositions = ({ stocks }: PortfolioPositionsProps) => {
     queryFn: async () => {
       if (positions.length === 0) return [];
       
-      const { data, error } = await supabase
-        .from('stock_data_cache')
-        .select('*')
-        .in('symbol', positions.map(p => p.symbol));
+      try {
+        const { data, error } = await supabase
+          .from('stock_data_cache')
+          .select('*')
+          .in('symbol', positions.map(p => p.symbol));
 
-      if (error) throw error;
-      return data || [];
+        if (error) {
+          toast({
+            title: "Error fetching stock prices",
+            description: "Please try again later",
+            variant: "destructive",
+          });
+          throw error;
+        }
+
+        return data || [];
+      } catch (error) {
+        console.error('Error fetching stock prices:', error);
+        return [];
+      }
     },
     enabled: positions.length > 0,
     refetchInterval: 60000, // Refetch every minute
+    retry: 3, // Retry failed requests 3 times
   });
 
   const getCurrentPrice = (symbol: string) => {
