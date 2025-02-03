@@ -5,6 +5,7 @@ import { Stock } from "@/lib/mockStocks";
 import { Badge } from "../ui/badge";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { StockDataCacheEntry } from "@/integrations/supabase/types";
 
 interface Position {
   symbol: string;
@@ -17,7 +18,7 @@ interface PortfolioPositionsProps {
 }
 
 export const PortfolioPositions = ({ stocks }: PortfolioPositionsProps) => {
-  const { data: positions = [], isLoading, error } = useQuery({
+  const { data: positions = [], isLoading } = useQuery({
     queryKey: ['positions'],
     queryFn: async () => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -33,22 +34,39 @@ export const PortfolioPositions = ({ stocks }: PortfolioPositionsProps) => {
     }
   });
 
+  // Fetch current stock prices from cache
+  const { data: stockPrices = [] } = useQuery({
+    queryKey: ['stockPrices', positions.map(p => p.symbol)],
+    queryFn: async () => {
+      if (positions.length === 0) return [];
+      
+      const { data, error } = await supabase
+        .from('stock_data_cache')
+        .select('*')
+        .in('symbol', positions.map(p => p.symbol));
+
+      if (error) throw error;
+      return data || [];
+    },
+    enabled: positions.length > 0,
+    refetchInterval: 60000, // Refetch every minute
+  });
+
+  const getCurrentPrice = (symbol: string) => {
+    const stockData = stockPrices.find(s => s.symbol === symbol);
+    return stockData ? (stockData.data as StockDataCacheEntry).price : 0;
+  };
+
   const totalValue = positions.reduce((sum, position) => {
-    const stock = stocks.find(s => s.symbol === position.symbol);
-    if (stock) {
-      return sum + (position.quantity * stock.price);
-    }
-    return sum;
+    const currentPrice = getCurrentPrice(position.symbol);
+    return sum + (position.quantity * currentPrice);
   }, 0);
 
   const totalGainLoss = positions.reduce((sum, position) => {
-    const stock = stocks.find(s => s.symbol === position.symbol);
-    if (stock) {
-      const currentValue = position.quantity * stock.price;
-      const costBasis = position.quantity * position.average_price;
-      return sum + (currentValue - costBasis);
-    }
-    return sum;
+    const currentPrice = getCurrentPrice(position.symbol);
+    const currentValue = position.quantity * currentPrice;
+    const costBasis = position.quantity * position.average_price;
+    return sum + (currentValue - costBasis);
   }, 0);
 
   if (isLoading) {
@@ -107,19 +125,17 @@ export const PortfolioPositions = ({ stocks }: PortfolioPositionsProps) => {
             </TableHeader>
             <TableBody>
               {positions.map((position) => {
-                const stock = stocks.find(s => s.symbol === position.symbol);
-                if (!stock) return null;
-
-                const currentValue = position.quantity * stock.price;
+                const currentPrice = getCurrentPrice(position.symbol);
+                const currentValue = position.quantity * currentPrice;
                 const costBasis = position.quantity * position.average_price;
                 const gainLoss = currentValue - costBasis;
-                const gainLossPercent = (gainLoss / costBasis) * 100;
+                const gainLossPercent = costBasis !== 0 ? (gainLoss / costBasis) * 100 : 0;
 
                 return (
                   <TableRow key={position.symbol}>
                     <TableCell className="font-medium text-xs py-2">{position.symbol}</TableCell>
                     <TableCell className="text-right text-xs py-2">{position.quantity}</TableCell>
-                    <TableCell className="text-right text-xs py-2">${stock.price.toFixed(2)}</TableCell>
+                    <TableCell className="text-right text-xs py-2">${currentPrice.toFixed(2)}</TableCell>
                     <TableCell className="text-right text-xs py-2">
                       <div className="flex items-center justify-end gap-1">
                         <span>${Math.abs(gainLoss).toFixed(2)}</span>
