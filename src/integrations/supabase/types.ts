@@ -384,3 +384,32 @@ export interface StockDataCacheEntry {
     url: string;
   }[];
 }
+
+// Type guard to check if a value is a StockDataCacheEntry
+export function isStockDataCacheEntry(value: unknown): value is StockDataCacheEntry {
+  if (!value || typeof value !== 'object') return false;
+  
+  const v = value as Partial<StockDataCacheEntry>;
+  return (
+    typeof v.symbol === 'string' &&
+    typeof v.name === 'string' &&
+    typeof v.price === 'number' &&
+    typeof v.change === 'number' &&
+    Array.isArray(v.chartData) &&
+    Array.isArray(v.news) &&
+    typeof v.description === 'string'
+  );
+}
+
+// Helper function to safely cast data to StockDataCacheEntry
+export function castToStockDataCacheEntry(data: Json): StockDataCacheEntry {
+  if (!data || typeof data !== 'object') {
+    throw new Error('Invalid stock data format');
+  }
+
+  if (isStockDataCacheEntry(data)) {
+    return data;
+  }
+
+  throw new Error('Invalid stock data format');
+}

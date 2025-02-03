@@ -9,8 +9,9 @@ import { StockNews } from "./stock/StockNews";
 import { SwipeInstructions } from "./stock/SwipeInstructions";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { StockDataCacheEntry } from "@/integrations/supabase/types";
+import { StockDataCacheEntry, castToStockDataCacheEntry } from "@/integrations/supabase/types";
 import { useQuery } from "@tanstack/react-query";
+import { useToast } from "@/hooks/use-toast";
 
 interface StockCardProps {
   stock: Stock;
@@ -21,6 +22,7 @@ export const StockCard = ({ stock, onSwipe }: StockCardProps) => {
   const [currentTimeframe, setCurrentTimeframe] = useState<'1D' | '5D' | '30D' | '1Y'>('30D');
   const x = useMotionValue(0);
   const rotate = useTransform(x, [-200, 200], [-30, 30]);
+  const { toast } = useToast();
   
   const redOverlayOpacity = useTransform(
     x,
@@ -38,15 +40,25 @@ export const StockCard = ({ stock, onSwipe }: StockCardProps) => {
   const { data: stockData } = useQuery({
     queryKey: ['stockPrice', stock.symbol],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('stock_data_cache')
-        .select('*')
-        .eq('symbol', stock.symbol)
-        .single();
+      try {
+        const { data, error } = await supabase
+          .from('stock_data_cache')
+          .select('*')
+          .eq('symbol', stock.symbol)
+          .single();
 
-      if (error) throw error;
+        if (error) throw error;
 
-      return data.data as StockDataCacheEntry;
+        return castToStockDataCacheEntry(data.data);
+      } catch (error) {
+        console.error('Error fetching stock data:', error);
+        toast({
+          title: "Error",
+          description: "Failed to fetch stock data. Please try again later.",
+          variant: "destructive",
+        });
+        throw error;
+      }
     },
     refetchInterval: 60000, // Refetch every minute
   });
