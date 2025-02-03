@@ -369,25 +369,6 @@ export type Database = {
   }
 }
 
-export interface StockDataCacheEntry {
-  symbol: string;
-  name: string;
-  price: number;
-  change: number;
-  chartData: Array<{
-    date: string;
-    value: number;
-  }>;
-  description?: string;
-  news?: Array<{
-    id: string;
-    title: string;
-    summary: string;
-    date: string;
-    url: string;
-  }>;
-}
-
 type PublicSchema = Database[Extract<keyof Database, "public">]
 
 export type Tables<
@@ -484,4 +465,3 @@ export type CompositeTypes<
   : PublicCompositeTypeNameOrOptions extends keyof PublicSchema["CompositeTypes"]
     ? PublicSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
     : never
-

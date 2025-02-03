@@ -58,7 +58,15 @@ export const PortfolioPositions = ({ stocks }: PortfolioPositionsProps) => {
           throw error;
         }
 
-        return data || [];
+        // Properly cast the data to our expected type
+        return (data || []).map(item => {
+          const stockData = item.data as StockDataCacheEntry;
+          return {
+            symbol: item.symbol,
+            currentPrice: stockData.price,
+            change: stockData.change
+          };
+        });
       } catch (error) {
         console.error('Error fetching stock prices:', error);
         return [];
@@ -71,8 +79,7 @@ export const PortfolioPositions = ({ stocks }: PortfolioPositionsProps) => {
 
   const getCurrentPrice = (symbol: string) => {
     const stockData = stockPrices.find(s => s.symbol === symbol);
-    const data = stockData?.data as StockDataCacheEntry | undefined;
-    return data ? data.price : 0;
+    return stockData?.currentPrice || 0;
   };
 
   const totalValue = positions.reduce((sum, position) => {
