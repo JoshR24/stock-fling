@@ -35,12 +35,15 @@ export const StockSearch = ({ onStockSelect }: StockSearchProps) => {
 
           if (error) throw error;
 
-          const formattedSuggestions = (stockData)?.map(stock => ({
-            symbol: stock.symbol,
-            name: (stock.data as StockDataCacheEntry).name,
-            price: (stock.data as StockDataCacheEntry).price,
-            change: (stock.data as StockDataCacheEntry).change
-          })) || [];
+          const formattedSuggestions = stockData?.map(stock => {
+            const stockData = stock.data as StockDataCacheEntry;
+            return {
+              symbol: stock.symbol,
+              name: stockData.name,
+              price: stockData.price,
+              change: stockData.change
+            };
+          }) || [];
 
           setSuggestions(formattedSuggestions);
         } catch (error) {

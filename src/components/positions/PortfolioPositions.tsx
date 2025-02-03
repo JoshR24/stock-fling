@@ -54,7 +54,8 @@ export const PortfolioPositions = ({ stocks }: PortfolioPositionsProps) => {
 
   const getCurrentPrice = (symbol: string) => {
     const stockData = stockPrices.find(s => s.symbol === symbol);
-    return stockData ? (stockData.data as StockDataCacheEntry).price : 0;
+    const data = stockData?.data as StockDataCacheEntry | undefined;
+    return data ? data.price : 0;
   };
 
   const totalValue = positions.reduce((sum, position) => {

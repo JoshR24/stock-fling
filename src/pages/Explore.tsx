@@ -40,16 +40,17 @@ const Explore = () => {
 
       if (error) throw error;
 
+      const data = stockData.data as StockDataCacheEntry;
       const formattedStock = {
         id: stockData.symbol,
         symbol: stockData.symbol,
-        name: (stockData.data as StockDataCacheEntry).name,
-        price: (stockData.data as StockDataCacheEntry).price,
-        change: (stockData.data as StockDataCacheEntry).change,
-        description: (stockData.data as StockDataCacheEntry).description,
-        news: (stockData.data as StockDataCacheEntry).news,
-        chartData: (stockData.data as StockDataCacheEntry).chartData.map((point: any) => ({
-          value: parseFloat(point.value)
+        name: data.name,
+        price: data.price,
+        change: data.change,
+        description: data.description,
+        news: data.news,
+        chartData: data.chartData?.map((point) => ({
+          value: point.value
         }))
       };
 

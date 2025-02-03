@@ -6,22 +6,6 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[]
 
-export interface StockDataCacheEntry {
-  name: string;
-  price: number;
-  change: number;
-  description?: string;
-  news?: {
-    datetime: string;
-    headline: string;
-    summary: string;
-    url: string;
-  }[];
-  chartData?: {
-    value: number;
-  }[];
-}
-
 export type Database = {
   public: {
     Tables: {
@@ -481,4 +465,3 @@ export type CompositeTypes<
   : PublicCompositeTypeNameOrOptions extends keyof PublicSchema["CompositeTypes"]
     ? PublicSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
     : never
-
