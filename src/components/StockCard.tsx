@@ -1,3 +1,4 @@
+
 import { Stock } from "@/lib/mockStocks";
 import { motion, useMotionValue, useTransform } from "framer-motion";
 import { Card } from "./ui/card";
@@ -9,13 +10,20 @@ import { StockNews } from "./stock/StockNews";
 import { SwipeInstructions } from "./stock/SwipeInstructions";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { StockDataCacheEntry, castToStockDataCacheEntry } from "@/integrations/supabase/types";
 import { useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 
 interface StockCardProps {
   stock: Stock;
   onSwipe: (direction: "left" | "right") => void;
+}
+
+interface StockCacheData {
+  price: number;
+  change: number;
+  chartData?: any;
+  news?: any[];
+  name?: string;
 }
 
 export const StockCard = ({ stock, onSwipe }: StockCardProps) => {
@@ -49,7 +57,7 @@ export const StockCard = ({ stock, onSwipe }: StockCardProps) => {
 
         if (error) throw error;
 
-        return castToStockDataCacheEntry(data.data);
+        return data.data as StockCacheData;
       } catch (error) {
         console.error('Error fetching stock data:', error);
         toast({

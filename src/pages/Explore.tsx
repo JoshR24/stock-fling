@@ -20,6 +20,7 @@ const Explore = () => {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [selectedStock, setSelectedStock] = useState<string | null>(null);
 
   const { data: stockData } = useQuery({
     queryKey: ['exploreStocks', selectedCategory],
@@ -33,7 +34,7 @@ const Explore = () => {
         if (error) throw error;
 
         return data.map(item => {
-          const stockInfo = item.data as any; // Type assertion since we can't modify types.ts
+          const stockInfo = item.data as any;
           return {
             symbol: item.symbol,
             name: stockInfo.name || 'Unknown',
@@ -77,13 +78,21 @@ const Explore = () => {
     };
   }, [queryClient]);
 
+  const handleStockSelect = (symbol: string) => {
+    setSelectedStock(symbol);
+    // Add any additional logic for stock selection
+  };
+
   return (
     <div className="h-full">
       <StockSearch />
       <ScrollArea className="h-full">
         <div className="p-4 space-y-4">
-          <StockCategories selectedCategory={selectedCategory} onSelectCategory={setSelectedCategory} />
-          <AIRecommendations />
+          <StockCategories 
+            selectedCategory={selectedCategory || ""} 
+            onSelectCategory={(category) => setSelectedCategory(category)} 
+          />
+          <AIRecommendations onStockSelect={handleStockSelect} />
           <div className="grid grid-cols-1 gap-4">
             {stockData?.map(stock => (
               <div key={stock.symbol} className="p-4 border rounded-md shadow-md">

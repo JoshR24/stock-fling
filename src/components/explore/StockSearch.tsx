@@ -1,10 +1,17 @@
+
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { castToStockDataCacheEntry } from "@/integrations/supabase/types";
 import { useToast } from "@/hooks/use-toast";
+
+interface StockCacheData {
+  symbol: string;
+  name: string;
+  price: number;
+  change: number;
+}
 
 export const StockSearch = () => {
   const [searchTerm, setSearchTerm] = useState("");
@@ -24,7 +31,15 @@ export const StockSearch = () => {
 
         if (error) throw error;
 
-        return data.map(item => castToStockDataCacheEntry(item.data));
+        return data.map(item => {
+          const stockData = item.data as any;
+          return {
+            symbol: item.symbol,
+            name: stockData.name || 'Unknown',
+            price: stockData.price || 0,
+            change: stockData.change || 0,
+          } as StockCacheData;
+        });
       } catch (error) {
         console.error('Error searching stocks:', error);
         toast({
