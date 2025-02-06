@@ -9,6 +9,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Card } from "@/components/ui/card";
+import { ExternalLink } from "lucide-react";
 
 interface StockData {
   symbol: string;
@@ -20,6 +21,7 @@ interface StockData {
     url: string;
     source: string;
     date: string;
+    summary?: string;
   }[];
 }
 
@@ -101,24 +103,36 @@ const Explore = () => {
           />
           <AIRecommendations onStockSelect={handleStockSelect} />
           <div className="space-y-4">
-            <h2 className="text-xl font-semibold">Latest Market News</h2>
-            {stockData?.map(stock => stock.news?.map((newsItem, index) => (
-              <Card key={`${stock.symbol}-${index}`} className="p-4">
-                <h3 className="font-medium">{newsItem.title}</h3>
-                <div className="text-sm text-muted-foreground mt-1">
-                  <span>{newsItem.source}</span>
-                  <span className="mx-2">•</span>
-                  <span>{new Date(newsItem.date).toLocaleDateString()}</span>
-                </div>
+            <h3 className="font-semibold text-lg">Recent News</h3>
+            {stockData?.map(stock => stock.news?.map((article) => (
+              <div key={`${stock.symbol}-${article.title}`} className="border-b border-border pb-4">
                 <a 
-                  href={newsItem.url} 
+                  href={article.url} 
                   target="_blank" 
-                  rel="noopener noreferrer"
-                  className="text-sm text-blue-500 hover:text-blue-600 mt-2 block"
+                  rel="noopener noreferrer" 
+                  className="group flex items-start gap-1 hover:text-primary transition-colors"
+                  onClick={(e) => {
+                    if (!article.url) {
+                      e.preventDefault();
+                      console.warn('No URL available for this article');
+                      return;
+                    }
+                    window.open(article.url, '_blank', 'noopener,noreferrer');
+                    e.preventDefault();
+                  }}
                 >
-                  Read more
+                  <h4 className="font-medium mb-1 flex-1">{article.title}</h4>
+                  <ExternalLink className="h-4 w-4 mt-1 opacity-0 group-hover:opacity-100 transition-opacity" />
                 </a>
-              </Card>
+                {article.summary && (
+                  <p className="text-sm text-muted-foreground mb-1">{article.summary}</p>
+                )}
+                <span className="text-xs text-muted-foreground">
+                  {article.source}
+                  <span className="mx-2">•</span>
+                  {new Date(article.date).toLocaleDateString()}
+                </span>
+              </div>
             )))}
           </div>
         </div>
