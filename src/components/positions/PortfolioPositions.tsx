@@ -3,15 +3,21 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from ".
 import { DollarSign, TrendingDown, TrendingUp } from "lucide-react";
 import { Stock } from "@/lib/mockStocks";
 import { Badge } from "../ui/badge";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { castToStockDataCacheEntry } from "@/integrations/supabase/types";
 import { useToast } from "@/hooks/use-toast";
+import { useEffect } from "react";
 
 interface Position {
   symbol: string;
   quantity: number;
   average_price: number;
+}
+
+interface StockPrice {
+  symbol: string;
+  currentPrice: number;
+  change: number;
 }
 
 interface PortfolioPositionsProps {
@@ -20,6 +26,7 @@ interface PortfolioPositionsProps {
 
 export const PortfolioPositions = ({ stocks }: PortfolioPositionsProps) => {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const { data: positions = [], isLoading } = useQuery({
     queryKey: ['positions'],
@@ -59,12 +66,12 @@ export const PortfolioPositions = ({ stocks }: PortfolioPositionsProps) => {
         }
 
         return (data || []).map(item => {
-          const stockData = castToStockDataCacheEntry(item.data);
+          const stockData = item.data as any; // Using type assertion since we can't modify types.ts
           return {
             symbol: item.symbol,
-            currentPrice: stockData.price,
-            change: stockData.change
-          };
+            currentPrice: stockData.price || 0,
+            change: stockData.change || 0
+          } as StockPrice;
         });
       } catch (error) {
         console.error('Error fetching stock prices:', error);
@@ -75,6 +82,30 @@ export const PortfolioPositions = ({ stocks }: PortfolioPositionsProps) => {
     refetchInterval: 60000, // Refetch every minute
     retry: 3, // Retry failed requests 3 times
   });
+
+  // Set up real-time listener for stock price updates
+  useEffect(() => {
+    const channel = supabase
+      .channel('stock-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'stock_data_cache'
+        },
+        (payload) => {
+          console.log('Received stock update:', payload);
+          // Invalidate queries to trigger a refresh
+          queryClient.invalidateQueries({ queryKey: ['stockPrices'] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
 
   const getCurrentPrice = (symbol: string) => {
     const stockData = stockPrices.find(s => s.symbol === symbol);
