@@ -8,12 +8,19 @@ import { AIRecommendations } from "@/components/explore/AIRecommendations";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { Card } from "@/components/ui/card";
 
 interface StockData {
   symbol: string;
   name: string;
   price: number;
   change: number;
+  news?: {
+    title: string;
+    url: string;
+    source: string;
+    date: string;
+  }[];
 }
 
 const Explore = () => {
@@ -29,7 +36,7 @@ const Explore = () => {
         const { data, error } = await supabase
           .from('stock_data_cache')
           .select('*')
-          .limit(10);
+          .limit(5);
 
         if (error) throw error;
 
@@ -39,7 +46,8 @@ const Explore = () => {
             symbol: item.symbol,
             name: stockInfo.name || 'Unknown',
             price: stockInfo.price || 0,
-            change: stockInfo.change || 0
+            change: stockInfo.change || 0,
+            news: stockInfo.news || []
           } as StockData;
         });
       } catch (error) {
@@ -80,7 +88,6 @@ const Explore = () => {
 
   const handleStockSelect = (symbol: string) => {
     setSelectedStock(symbol);
-    // Add any additional logic for stock selection
   };
 
   return (
@@ -93,14 +100,26 @@ const Explore = () => {
             onSelectCategory={(category) => setSelectedCategory(category)} 
           />
           <AIRecommendations onStockSelect={handleStockSelect} />
-          <div className="grid grid-cols-1 gap-4">
-            {stockData?.map(stock => (
-              <div key={stock.symbol} className="p-4 border rounded-md shadow-md">
-                <h2 className="text-lg font-bold">{stock.name} ({stock.symbol})</h2>
-                <p>Price: ${stock.price.toFixed(2)}</p>
-                <p>Change: {stock.change.toFixed(2)}%</p>
-              </div>
-            ))}
+          <div className="space-y-4">
+            <h2 className="text-xl font-semibold">Latest Market News</h2>
+            {stockData?.map(stock => stock.news?.map((newsItem, index) => (
+              <Card key={`${stock.symbol}-${index}`} className="p-4">
+                <h3 className="font-medium">{newsItem.title}</h3>
+                <div className="text-sm text-muted-foreground mt-1">
+                  <span>{newsItem.source}</span>
+                  <span className="mx-2">•</span>
+                  <span>{new Date(newsItem.date).toLocaleDateString()}</span>
+                </div>
+                <a 
+                  href={newsItem.url} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-sm text-blue-500 hover:text-blue-600 mt-2 block"
+                >
+                  Read more
+                </a>
+              </Card>
+            )))}
           </div>
         </div>
       </ScrollArea>
