@@ -57,7 +57,15 @@ export const StockCard = ({ stock, onSwipe }: StockCardProps) => {
 
         if (error) throw error;
 
-        return data.data as StockCacheData;
+        const rawData = data.data as unknown;
+        const typedData = rawData as StockCacheData;
+        
+        // Validate required fields
+        if (typeof typedData.price !== 'number' || typeof typedData.change !== 'number') {
+          throw new Error('Invalid stock data format');
+        }
+
+        return typedData;
       } catch (error) {
         console.error('Error fetching stock data:', error);
         toast({

@@ -1,5 +1,11 @@
+
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
+
+interface StockCategoriesProps {
+  selectedCategory: string;
+  onSelectCategory: (category: string) => void;
+}
 
 const stockCategories = [
   {
@@ -28,7 +34,7 @@ const stockCategories = [
   }
 ];
 
-export const StockCategories = () => {
+export const StockCategories = ({ selectedCategory, onSelectCategory }: StockCategoriesProps) => {
   const { toast } = useToast();
 
   return (
@@ -36,8 +42,9 @@ export const StockCategories = () => {
       {stockCategories.map((category, index) => (
         <Card
           key={index}
-          className={`p-4 cursor-pointer transition-transform hover:scale-105 ${category.bgColor} ${category.textColor}`}
+          className={`p-4 cursor-pointer transition-transform hover:scale-105 ${category.bgColor} ${category.textColor} ${selectedCategory === category.title ? 'ring-2 ring-primary' : ''}`}
           onClick={() => {
+            onSelectCategory(category.title);
             toast({
               title: "Coming Soon",
               description: `${category.title} filtering will be available soon!`,
