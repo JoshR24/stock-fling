@@ -1,3 +1,4 @@
+
 import { Card } from "../ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
 import { DollarSign, TrendingDown, TrendingUp } from "lucide-react";
@@ -66,7 +67,7 @@ export const PortfolioPositions = ({ stocks }: PortfolioPositionsProps) => {
         }
 
         return (data || []).map(item => {
-          const stockData = item.data as any; // Using type assertion since we can't modify types.ts
+          const stockData = item.data as any;
           return {
             symbol: item.symbol,
             currentPrice: stockData.price || 0,
@@ -80,19 +81,21 @@ export const PortfolioPositions = ({ stocks }: PortfolioPositionsProps) => {
     },
     enabled: positions.length > 0,
     refetchInterval: 60000, // Refetch every minute
-    retry: 3, // Retry failed requests 3 times
   });
 
   // Set up real-time listener for stock price updates
   useEffect(() => {
+    if (positions.length === 0) return;
+
     const channel = supabase
-      .channel('stock-updates')
+      .channel('stock-price-updates')
       .on(
         'postgres_changes',
         {
           event: 'UPDATE',
           schema: 'public',
-          table: 'stock_data_cache'
+          table: 'stock_data_cache',
+          filter: `symbol=in.(${positions.map(p => `'${p.symbol}'`).join(',')})`,
         },
         (payload) => {
           console.log('Received stock update:', payload);
@@ -105,7 +108,7 @@ export const PortfolioPositions = ({ stocks }: PortfolioPositionsProps) => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [queryClient]);
+  }, [positions.length, queryClient]);
 
   const getCurrentPrice = (symbol: string) => {
     const stockData = stockPrices.find(s => s.symbol === symbol);
