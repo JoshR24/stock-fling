@@ -56,22 +56,30 @@ async function fetchPolygonPrice(symbol: string) {
     throw new Error('Polygon API key not configured');
   }
 
-  console.log(`[${new Date().toISOString()}] Fetching real-time price for ${symbol}`);
+  const timestamp = new Date().toISOString();
+  console.log(`[${timestamp}] Fetching real-time price for ${symbol}`);
   
   const quoteResponse = await fetch(
     `https://api.polygon.io/v2/last/trade/${symbol}?apiKey=${POLYGON_API_KEY}`
   );
 
   if (!quoteResponse.ok) {
-    console.error(`Failed to fetch quote data for ${symbol}: ${quoteResponse.status}`);
+    console.error(`[${timestamp}] Failed to fetch quote data for ${symbol}: ${quoteResponse.status}`);
     throw new Error(`Failed to fetch quote data for ${symbol}`);
   }
 
   const quoteData = await quoteResponse.json();
-  console.log(`[${new Date().toISOString()}] Received price data for ${symbol}:`, JSON.stringify(quoteData));
+  console.log(`[${timestamp}] Raw response for ${symbol}:`, JSON.stringify(quoteData));
+  
+  if (!quoteData.results?.p) {
+    console.warn(`[${timestamp}] No price data found for ${symbol} in response:`, JSON.stringify(quoteData));
+  }
+  
+  const price = quoteData.results?.p || 0;
+  console.log(`[${timestamp}] Extracted price for ${symbol}: ${price}`);
   
   return {
-    price: quoteData.results?.p || 0,  // p is the price of the trade
+    price: price,
     change: 0 // We'll need to calculate this differently with real-time data
   };
 }
