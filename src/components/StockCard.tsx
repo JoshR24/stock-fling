@@ -41,12 +41,17 @@ export const StockCard = ({ stock, onSwipe }: StockCardProps) => {
     queryKey: ['stockPrice', stock.symbol],
     queryFn: async () => {
       try {
+        console.log('Fetching data for symbol:', stock.symbol); // Debug log
         const { data, error } = await supabase.functions.invoke('fetchStockData', {
-          body: { symbol: stock.symbol }
+          body: { symbol: stock.symbol } // Explicitly pass the symbol
         });
 
-        if (error) throw error;
+        if (error) {
+          console.error('Error fetching stock data:', error); // Debug log
+          throw error;
+        }
 
+        console.log('Received stock data:', data); // Debug log
         return {
           price: data.price,
           change: data.change,
@@ -54,7 +59,7 @@ export const StockCard = ({ stock, onSwipe }: StockCardProps) => {
           news: stock.news
         };
       } catch (error) {
-        console.error('Error fetching stock data:', error);
+        console.error('Error in stock data query:', error);
         toast({
           title: "Error",
           description: "Failed to fetch stock data. Please try again later.",
