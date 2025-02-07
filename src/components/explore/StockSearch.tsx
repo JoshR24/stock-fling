@@ -13,7 +13,11 @@ interface StockCacheData {
   change: number;
 }
 
-export const StockSearch = () => {
+interface StockSearchProps {
+  onSelect: (symbol: string) => void;
+}
+
+export const StockSearch = ({ onSelect }: StockSearchProps) => {
   const [searchTerm, setSearchTerm] = useState("");
   const { toast } = useToast();
 
@@ -70,9 +74,7 @@ export const StockSearch = () => {
             <div
               key={stock.symbol}
               className="p-2 hover:bg-muted cursor-pointer"
-              onClick={() => {
-                // Handle stock selection
-              }}
+              onClick={() => onSelect(stock.symbol)}
             >
               <div className="font-medium">{stock.symbol}</div>
               <div className="text-sm text-muted-foreground">{stock.name}</div>

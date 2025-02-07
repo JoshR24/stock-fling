@@ -1,3 +1,4 @@
+
 import { Stock } from "@/lib/mockStocks";
 import { Card } from "../ui/card";
 import { Area, AreaChart, ResponsiveContainer, YAxis } from "recharts";
@@ -57,7 +58,7 @@ export const StockList = ({ stocks, onSelectStock }: StockListProps) => {
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={stock.chartData}>
                 <defs>
-                  <linearGradient id={`color${stock.id}`} x1="0" y1="0" x2="0" y2="1">
+                  <linearGradient id={`gradient-${stock.id}`} x1="0" y1="0" x2="0" y2="1">
                     <stop
                       offset="5%"
                       stopColor={stock.change >= 0 ? "rgb(34, 197, 94)" : "rgb(239, 68, 68)"}
@@ -70,13 +71,14 @@ export const StockList = ({ stocks, onSelectStock }: StockListProps) => {
                     />
                   </linearGradient>
                 </defs>
-                <YAxis domain={['dataMin', 'dataMax']} hide />
+                <YAxis domain={['auto', 'auto']} hide padding={{ top: 10, bottom: 10 }} />
                 <Area
                   type="monotone"
                   dataKey="value"
                   stroke={stock.change >= 0 ? "rgb(34, 197, 94)" : "rgb(239, 68, 68)"}
                   fillOpacity={1}
-                  fill={`url(#color${stock.id})`}
+                  fill={`url(#gradient-${stock.id})`}
+                  strokeWidth={2}
                 />
               </AreaChart>
             </ResponsiveContainer>
