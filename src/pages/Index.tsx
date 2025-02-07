@@ -202,6 +202,7 @@ const Index = ({ showPortfolio: initialShowPortfolio = false }: IndexProps) => {
                       key={stock.id}
                       stock={stock}
                       onSwipe={handleSwipe}
+                      visibleStocks={stocks.slice(0, 5)} // Pass the next 5 visible stocks
                     />
                   ))}
                 </AnimatePresence>

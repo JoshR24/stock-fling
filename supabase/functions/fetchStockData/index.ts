@@ -46,74 +46,83 @@ async function fetchPolygonPrice(symbol: string) {
   };
 }
 
-async function fetchPolygonData(symbol: string) {
-  console.log(`[${new Date().toISOString()}] Fetching complete data from Polygon for ${symbol}`);
+async function fetchPolygonData(symbols: string[]) {
+  console.log(`[${new Date().toISOString()}] Fetching complete data for symbols:`, symbols);
   
   const POLYGON_API_KEY = Deno.env.get('POLYGON_API_KEY');
   if (!POLYGON_API_KEY) {
     throw new Error('Polygon API key not configured');
   }
 
-  // Always fetch fresh price data
-  const priceData = await fetchPolygonPrice(symbol);
+  const results = await Promise.all(symbols.map(async (symbol) => {
+    try {
+      // Always fetch fresh price data
+      const priceData = await fetchPolygonPrice(symbol);
 
-  // Fetch company details
-  const detailsResponse = await fetch(
-    `https://api.polygon.io/v3/reference/tickers/${symbol}?apiKey=${POLYGON_API_KEY}`
-  );
+      // Fetch company details
+      const detailsResponse = await fetch(
+        `https://api.polygon.io/v3/reference/tickers/${symbol}?apiKey=${POLYGON_API_KEY}`
+      );
 
-  if (!detailsResponse.ok) {
-    throw new Error(`Failed to fetch details for ${symbol}`);
-  }
+      if (!detailsResponse.ok) {
+        throw new Error(`Failed to fetch details for ${symbol}`);
+      }
 
-  const detailsData = await detailsResponse.json();
+      const detailsData = await detailsResponse.json();
 
-  // Fetch historical data (last 30 days)
-  const today = new Date();
-  const thirtyDaysAgo = new Date(today.setDate(today.getDate() - 30));
-  const formattedFromDate = thirtyDaysAgo.toISOString().split('T')[0];
-  const formattedToDate = new Date().toISOString().split('T')[0];
+      // Fetch historical data (last 30 days)
+      const today = new Date();
+      const thirtyDaysAgo = new Date(today.setDate(today.getDate() - 30));
+      const formattedFromDate = thirtyDaysAgo.toISOString().split('T')[0];
+      const formattedToDate = new Date().toISOString().split('T')[0];
 
-  const historicalResponse = await fetch(
-    `https://api.polygon.io/v2/aggs/ticker/${symbol}/range/1/day/${formattedFromDate}/${formattedToDate}?adjusted=true&sort=asc&limit=120&apiKey=${POLYGON_API_KEY}`
-  );
+      const historicalResponse = await fetch(
+        `https://api.polygon.io/v2/aggs/ticker/${symbol}/range/1/day/${formattedFromDate}/${formattedToDate}?adjusted=true&sort=asc&limit=120&apiKey=${POLYGON_API_KEY}`
+      );
 
-  if (!historicalResponse.ok) {
-    throw new Error(`Failed to fetch historical data for ${symbol}`);
-  }
+      if (!historicalResponse.ok) {
+        throw new Error(`Failed to fetch historical data for ${symbol}`);
+      }
 
-  const historicalData = await historicalResponse.json();
+      const historicalData = await historicalResponse.json();
 
-  // Fetch news
-  const newsResponse = await fetch(
-    `https://api.polygon.io/v2/reference/news?ticker=${symbol}&order=desc&limit=5&apiKey=${POLYGON_API_KEY}`
-  );
+      // Fetch news
+      const newsResponse = await fetch(
+        `https://api.polygon.io/v2/reference/news?ticker=${symbol}&order=desc&limit=5&apiKey=${POLYGON_API_KEY}`
+      );
 
-  let newsData = [];
-  if (newsResponse.ok) {
-    const newsJson = await newsResponse.json();
-    newsData = newsJson.results || [];
-  }
+      let newsData = [];
+      if (newsResponse.ok) {
+        const newsJson = await newsResponse.json();
+        newsData = newsJson.results || [];
+      }
 
-  // Format the data
-  return {
-    symbol,
-    name: detailsData.results.name || symbol,
-    price: priceData.price,
-    change: priceData.change,
-    chartData: (historicalData.results || []).map((bar: any) => ({
-      date: new Date(bar.t).toLocaleDateString(),
-      value: bar.c
-    })),
-    description: detailsData.results.description || `${detailsData.results.name || symbol} is a publicly traded company.`,
-    news: newsData.map((article: any, index: number) => ({
-      id: `${symbol}-news-${index + 1}`,
-      title: article.title || 'No title available',
-      summary: article.description || 'No summary available',
-      date: new Date(article.published_utc).toLocaleDateString(),
-      url: article.article_url || ''
-    }))
-  };
+      // Return formatted data for this symbol
+      return {
+        symbol,
+        name: detailsData.results.name || symbol,
+        price: priceData.price,
+        change: priceData.change,
+        chartData: (historicalData.results || []).map((bar: any) => ({
+          date: new Date(bar.t).toLocaleDateString(),
+          value: bar.c
+        })),
+        description: detailsData.results.description || `${detailsData.results.name || symbol} is a publicly traded company.`,
+        news: newsData.map((article: any, index: number) => ({
+          id: `${symbol}-news-${index + 1}`,
+          title: article.title || 'No title available',
+          summary: article.description || 'No summary available',
+          date: new Date(article.published_utc).toLocaleDateString(),
+          url: article.article_url || ''
+        }))
+      };
+    } catch (error) {
+      console.error(`Error fetching data for ${symbol}:`, error);
+      throw error;
+    }
+  }));
+
+  return results;
 }
 
 serve(async (req) => {
@@ -122,11 +131,11 @@ serve(async (req) => {
   }
 
   try {
-    const { symbol } = await req.json();
+    const { symbols } = await req.json();
     
-    if (!symbol) {
+    if (!symbols || !Array.isArray(symbols) || symbols.length === 0) {
       return new Response(
-        JSON.stringify({ error: 'Symbol is required' }),
+        JSON.stringify({ error: 'Symbols array is required' }),
         { 
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -134,10 +143,10 @@ serve(async (req) => {
       );
     }
 
-    console.log(`Processing request for symbol: ${symbol}`);
+    console.log(`Processing request for symbols:`, symbols);
 
-    // Always fetch fresh data from Polygon
-    const freshData = await fetchPolygonData(symbol);
+    // Fetch fresh data for all symbols at once
+    const freshData = await fetchPolygonData(symbols);
 
     return new Response(
       JSON.stringify(freshData),
