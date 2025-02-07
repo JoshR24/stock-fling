@@ -1,3 +1,4 @@
+
 import { useState, useCallback, useEffect } from "react";
 import { Stock, generateStockBatch } from "@/lib/mockStocks";
 import { StockCard } from "@/components/StockCard";
@@ -16,30 +17,6 @@ const Index = ({ showPortfolio: initialShowPortfolio = false }: IndexProps) => {
   const [stocks, setStocks] = useState<Stock[]>([]);
   const [showPortfolio, setShowPortfolio] = useState(initialShowPortfolio);
   const { toast } = useToast();
-
-  // Function to initialize the stock cache
-  const initializeStockCache = async () => {
-    try {
-      const { data, error } = await supabase.functions.invoke('fetchStockData', {
-        body: { initialize: true }
-      });
-
-      if (error) throw error;
-      console.log('Cache initialization response:', data);
-    } catch (error) {
-      console.error('Error initializing cache:', error);
-      toast({
-        title: "Error",
-        description: "Failed to initialize stock cache. Please try again later.",
-        variant: "destructive",
-      });
-    }
-  };
-
-  // Initialize cache when component mounts
-  useEffect(() => {
-    initializeStockCache();
-  }, []);
 
   // Fetch positions data using React Query
   const { data: positionsData } = useQuery({
@@ -64,8 +41,6 @@ const Index = ({ showPortfolio: initialShowPortfolio = false }: IndexProps) => {
       return data || [];
     },
   });
-
-  // Load initial stocks
 
   // Load initial stocks
   const loadStocks = async () => {

@@ -8,7 +8,7 @@ import { StockChart } from "./stock/StockChart";
 import { StockPrice } from "./stock/StockPrice";
 import { StockNews } from "./stock/StockNews";
 import { SwipeInstructions } from "./stock/SwipeInstructions";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
@@ -41,11 +41,15 @@ export const StockCard = ({ stock, onSwipe }: StockCardProps) => {
     queryKey: ['stockPrice', stock.symbol],
     queryFn: async () => {
       try {
+        console.log('Fetching stock data for:', stock.symbol);
         const { data, error } = await supabase.functions.invoke('fetchStockData', {
           body: { symbol: stock.symbol }
         });
 
-        if (error) throw error;
+        if (error) {
+          console.error('Error fetching stock data:', error);
+          throw error;
+        }
 
         return {
           price: data.price,
