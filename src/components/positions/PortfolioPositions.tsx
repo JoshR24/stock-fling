@@ -79,7 +79,7 @@ export const PortfolioPositions = ({ stocks }: PortfolioPositionsProps) => {
       }
     },
     enabled: positions.length > 0,
-    refetchInterval: 1000, // Refetch every second
+    refetchInterval: 10000, // Refetch every 10 seconds
   });
 
   // Set up real-time listener for stock price updates

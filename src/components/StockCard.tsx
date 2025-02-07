@@ -10,13 +10,12 @@ import { StockNews } from "./stock/StockNews";
 import { SwipeInstructions } from "./stock/SwipeInstructions";
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 
 interface StockCardProps {
   stock: Stock;
   onSwipe: (direction: "left" | "right") => void;
-  visibleStocks: Stock[];
 }
 
 interface StockCacheData {
@@ -27,12 +26,11 @@ interface StockCacheData {
   name?: string;
 }
 
-export const StockCard = ({ stock, onSwipe, visibleStocks }: StockCardProps) => {
+export const StockCard = ({ stock, onSwipe }: StockCardProps) => {
   const [currentTimeframe, setCurrentTimeframe] = useState<'1D' | '5D' | '30D' | '1Y'>('30D');
   const x = useMotionValue(0);
   const rotate = useTransform(x, [-200, 200], [-30, 30]);
   const { toast } = useToast();
-  const queryClient = useQueryClient();
   
   const redOverlayOpacity = useTransform(
     x,
@@ -46,17 +44,28 @@ export const StockCard = ({ stock, onSwipe, visibleStocks }: StockCardProps) => 
     [0, 0.15, 0.3]
   );
 
-  // Fetch real-time stock data for all visible stocks
-  const { data: stocksData = [], isError } = useQuery({
-    queryKey: ['stockPrices', visibleStocks.map(s => s.symbol)],
+  // Fetch real-time stock data
+  const { data: stockData } = useQuery({
+    queryKey: ['stockPrice', stock.symbol],
     queryFn: async () => {
       try {
-        const { data, error } = await supabase.functions.invoke('fetchStockData', {
-          body: { symbols: visibleStocks.map(s => s.symbol) }
-        });
+        const { data, error } = await supabase
+          .from('stock_data_cache')
+          .select('*')
+          .eq('symbol', stock.symbol)
+          .single();
 
         if (error) throw error;
-        return Array.isArray(data) ? data : [];
+
+        const rawData = data.data as unknown;
+        const typedData = rawData as StockCacheData;
+        
+        // Validate required fields
+        if (typeof typedData.price !== 'number' || typeof typedData.change !== 'number') {
+          throw new Error('Invalid stock data format');
+        }
+
+        return typedData;
       } catch (error) {
         console.error('Error fetching stock data:', error);
         toast({
@@ -69,11 +78,6 @@ export const StockCard = ({ stock, onSwipe, visibleStocks }: StockCardProps) => 
     },
     refetchInterval: 60000, // Refetch every minute
   });
-
-  // Get the current stock's data from the batch response
-  const currentStockData = Array.isArray(stocksData) 
-    ? stocksData.find((s: any) => s.symbol === stock.symbol)
-    : null;
 
   // Set up real-time listener for stock price updates
   useEffect(() => {
@@ -89,8 +93,6 @@ export const StockCard = ({ stock, onSwipe, visibleStocks }: StockCardProps) => 
         },
         (payload) => {
           console.log('Received stock update:', payload);
-          // Invalidate queries to trigger a refresh
-          queryClient.invalidateQueries({ queryKey: ['stockPrices'] });
         }
       )
       .subscribe();
@@ -98,15 +100,15 @@ export const StockCard = ({ stock, onSwipe, visibleStocks }: StockCardProps) => 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [stock.symbol, queryClient]);
+  }, [stock.symbol]);
 
   // Update stock data with real-time values
   const updatedStock: Stock = {
     ...stock,
-    price: currentStockData?.price ?? stock.price,
-    change: currentStockData?.change ?? stock.change,
-    chartData: currentStockData?.chartData ?? stock.chartData,
-    news: currentStockData?.news ?? stock.news,
+    price: stockData?.price ?? stock.price,
+    change: stockData?.change ?? stock.change,
+    chartData: stockData?.chartData ?? stock.chartData,
+    news: stockData?.news ?? stock.news,
   };
 
   return (
@@ -162,4 +164,3 @@ export const StockCard = ({ stock, onSwipe, visibleStocks }: StockCardProps) => 
     </motion.div>
   );
 };
-
