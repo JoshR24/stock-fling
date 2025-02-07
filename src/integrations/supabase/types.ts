@@ -342,7 +342,7 @@ export type Database = {
           symbol: string
         }
         Insert: {
-          data: Json
+          data?: Json
           last_updated?: string
           symbol: string
         }
