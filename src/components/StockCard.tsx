@@ -18,14 +18,6 @@ interface StockCardProps {
   onSwipe: (direction: "left" | "right") => void;
 }
 
-interface StockCacheData {
-  price: number;
-  change: number;
-  chartData?: any;
-  news?: any[];
-  name?: string;
-}
-
 export const StockCard = ({ stock, onSwipe }: StockCardProps) => {
   const [currentTimeframe, setCurrentTimeframe] = useState<'1D' | '5D' | '30D' | '1Y'>('30D');
   const x = useMotionValue(0);
@@ -49,23 +41,18 @@ export const StockCard = ({ stock, onSwipe }: StockCardProps) => {
     queryKey: ['stockPrice', stock.symbol],
     queryFn: async () => {
       try {
-        const { data, error } = await supabase
-          .from('stock_data_cache')
-          .select('*')
-          .eq('symbol', stock.symbol)
-          .single();
+        const { data, error } = await supabase.functions.invoke('fetchStockData', {
+          body: { symbol: stock.symbol }
+        });
 
         if (error) throw error;
 
-        const rawData = data.data as unknown;
-        const typedData = rawData as StockCacheData;
-        
-        // Validate required fields
-        if (typeof typedData.price !== 'number' || typeof typedData.change !== 'number') {
-          throw new Error('Invalid stock data format');
-        }
-
-        return typedData;
+        return {
+          price: data.price,
+          change: data.change,
+          chartData: stock.chartData,
+          news: stock.news
+        };
       } catch (error) {
         console.error('Error fetching stock data:', error);
         toast({
@@ -73,34 +60,11 @@ export const StockCard = ({ stock, onSwipe }: StockCardProps) => {
           description: "Failed to fetch stock data. Please try again later.",
           variant: "destructive",
         });
-        throw error;
+        return null;
       }
     },
     refetchInterval: 60000, // Refetch every minute
   });
-
-  // Set up real-time listener for stock price updates
-  useEffect(() => {
-    const channel = supabase
-      .channel('stock-updates')
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'stock_data_cache',
-          filter: `symbol=eq.${stock.symbol}`
-        },
-        (payload) => {
-          console.log('Received stock update:', payload);
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [stock.symbol]);
 
   // Update stock data with real-time values
   const updatedStock: Stock = {
