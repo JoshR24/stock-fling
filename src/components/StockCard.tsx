@@ -62,7 +62,8 @@ export const StockCard = ({ stock, onSwipe }: StockCardProps) => {
           throw error;
         }
 
-        return data?.data as StockData | null;
+        // Cast the data to StockData type
+        return data?.data as StockData;
       } catch (error) {
         console.error('Error fetching stock data:', error);
         toast({
