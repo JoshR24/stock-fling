@@ -26,38 +26,39 @@ serve(async (req) => {
       );
     }
 
-    console.log(`Processing request for symbol: ${symbol}`);
+    console.log(`Fetching cached data for symbol: ${symbol}`);
 
-    const POLYGON_API_KEY = Deno.env.get('POLYGON_API_KEY');
-    if (!POLYGON_API_KEY) {
-      throw new Error('Polygon API key not configured');
-    }
-
-    // Fetch real-time trade data from Polygon
-    const response = await fetch(
-      `https://api.polygon.io/v2/aggs/ticker/${symbol}/prev?adjusted=true&apiKey=${POLYGON_API_KEY}`
-    );
-
-    if (!response.ok) {
-      throw new Error(`Failed to fetch data for ${symbol}`);
-    }
-
-    const data = await response.json();
+    // Initialize Supabase client
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
     
-    if (!data.results?.[0]) {
-      throw new Error(`No data available for ${symbol}`);
+    if (!supabaseUrl || !supabaseKey) {
+      throw new Error('Supabase credentials not configured');
     }
 
-    const result = {
-      symbol,
-      price: data.results[0].c,
-      change: data.results[0].c && data.results[0].o 
-        ? ((data.results[0].c - data.results[0].o) / data.results[0].o * 100)
-        : 0
-    };
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    // Fetch from cache
+    const { data: cacheData, error: cacheError } = await supabase
+      .from('stock_data_cache')
+      .select('data')
+      .eq('symbol', symbol)
+      .maybeSingle();
+
+    if (cacheError) throw cacheError;
+    
+    if (!cacheData) {
+      return new Response(
+        JSON.stringify({ error: `No data available for ${symbol}` }),
+        { 
+          status: 404,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
+    }
 
     return new Response(
-      JSON.stringify(result),
+      JSON.stringify(cacheData.data),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
@@ -70,7 +71,7 @@ serve(async (req) => {
         details: error.toString()
       }),
       { 
-        status: 200,
+        status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       }
     );
