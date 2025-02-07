@@ -11,7 +11,9 @@ const supabase = createClient(
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
 )
 
-const CACHE_DURATION = 1000 * 60 * 60; // 1 hour cache
+// Reduced cache duration to 10 seconds for price data
+const PRICE_CACHE_DURATION = 1000 * 10; // 10 seconds cache for prices
+const DETAILS_CACHE_DURATION = 1000 * 60 * 60; // 1 hour cache for company details, news, etc.
 
 async function getStockDataFromCache(symbol: string) {
   const { data, error } = await supabase
@@ -25,12 +27,57 @@ async function getStockDataFromCache(symbol: string) {
     return null;
   }
 
-  if (data && Date.now() - new Date(data.last_updated).getTime() < CACHE_DURATION) {
-    console.log(`Using cached data for ${symbol}`);
-    return data.data;
+  const currentTime = Date.now();
+  const lastUpdate = new Date(data.last_updated).getTime();
+
+  // Only use cache if it's recent enough
+  if (data) {
+    const cachedData = data.data;
+    
+    // If price data is recent enough, use it
+    if (currentTime - lastUpdate < PRICE_CACHE_DURATION) {
+      console.log(`Using fully cached data for ${symbol}`);
+      return cachedData;
+    } 
+    // If only company details are needed and they're recent enough, update just the price
+    else if (currentTime - lastUpdate < DETAILS_CACHE_DURATION) {
+      console.log(`Updating only price data for ${symbol}`);
+      const freshPriceData = await fetchPolygonPrice(symbol);
+      return {
+        ...cachedData,
+        price: freshPriceData.price,
+        change: freshPriceData.change
+      };
+    }
   }
 
   return null;
+}
+
+async function fetchPolygonPrice(symbol: string) {
+  const POLYGON_API_KEY = Deno.env.get('POLYGON_API_KEY');
+  if (!POLYGON_API_KEY) {
+    throw new Error('Polygon API key not configured');
+  }
+
+  console.log(`Fetching real-time price for ${symbol}`);
+  
+  const quoteResponse = await fetch(
+    `https://api.polygon.io/v2/aggs/ticker/${symbol}/prev?adjusted=true&apiKey=${POLYGON_API_KEY}`
+  );
+
+  if (!quoteResponse.ok) {
+    throw new Error(`Failed to fetch quote data for ${symbol}`);
+  }
+
+  const quoteData = await quoteResponse.json();
+  
+  return {
+    price: quoteData.results?.[0]?.c || 0,
+    change: quoteData.results?.[0]?.c && quoteData.results?.[0]?.o 
+      ? ((quoteData.results[0].c - quoteData.results[0].o) / quoteData.results[0].o * 100)
+      : 0
+  };
 }
 
 async function updateStockDataCache(symbol: string, data: any) {
@@ -68,23 +115,15 @@ async function getAllTickers() {
 }
 
 async function fetchPolygonData(symbol: string) {
-  console.log(`Fetching fresh data from Polygon for ${symbol}`);
+  console.log(`Fetching complete data from Polygon for ${symbol}`);
   
   const POLYGON_API_KEY = Deno.env.get('POLYGON_API_KEY');
   if (!POLYGON_API_KEY) {
     throw new Error('Polygon API key not configured');
   }
 
-  // Fetch current price and daily change
-  const quoteResponse = await fetch(
-    `https://api.polygon.io/v2/aggs/ticker/${symbol}/prev?adjusted=true&apiKey=${POLYGON_API_KEY}`
-  );
-
-  if (!quoteResponse.ok) {
-    throw new Error(`Failed to fetch quote data for ${symbol}`);
-  }
-
-  const quoteData = await quoteResponse.json();
+  // Fetch real-time price data
+  const priceData = await fetchPolygonPrice(symbol);
 
   // Fetch company details
   const detailsResponse = await fetch(
@@ -128,10 +167,8 @@ async function fetchPolygonData(symbol: string) {
   const result = {
     symbol,
     name: detailsData.results.name || symbol,
-    price: quoteData.results?.[0]?.c || 0,
-    change: quoteData.results?.[0]?.c && quoteData.results?.[0]?.o 
-      ? ((quoteData.results[0].c - quoteData.results[0].o) / quoteData.results[0].o * 100)
-      : 0,
+    price: priceData.price,
+    change: priceData.change,
     chartData: (historicalData.results || []).map((bar: any) => ({
       date: new Date(bar.t).toLocaleDateString(),
       value: bar.c
@@ -190,7 +227,6 @@ serve(async (req) => {
     
     if (initialize) {
       console.log('Initializing stock cache');
-      // Use EdgeRuntime.waitUntil to run initialization in the background
       EdgeRuntime.waitUntil(initializeStockCache());
       return new Response(
         JSON.stringify({ message: 'Stock cache initialization started' }),

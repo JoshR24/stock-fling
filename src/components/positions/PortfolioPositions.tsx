@@ -1,4 +1,3 @@
-
 import { Card } from "../ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
 import { DollarSign, TrendingDown, TrendingUp } from "lucide-react";
@@ -80,7 +79,7 @@ export const PortfolioPositions = ({ stocks }: PortfolioPositionsProps) => {
       }
     },
     enabled: positions.length > 0,
-    refetchInterval: 60000, // Refetch every minute
+    refetchInterval: 10000, // Refetch every 10 seconds
   });
 
   // Set up real-time listener for stock price updates
