@@ -4,6 +4,19 @@ import { Stock } from "@/lib/mockStocks";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
+interface StockDataCache {
+  symbol: string;
+  data: {
+    name: string;
+    price: number;
+    change: number;
+    description: string;
+    chartData: Array<{ value: number; date: string }>;
+    news: Array<{ id: string; title: string; summary: string; date: string; url: string }>;
+  };
+  last_updated: string;
+}
+
 export const useStocks = () => {
   const [stocks, setStocks] = useState<Stock[]>([]);
   const { toast } = useToast();
@@ -36,7 +49,7 @@ export const useStocks = () => {
         throw error;
       }
 
-      const processedStocks = (availableStocks || []).map(stock => ({
+      const processedStocks = (availableStocks as StockDataCache[] || []).map(stock => ({
         id: stock.symbol,
         symbol: stock.symbol,
         name: stock.data.name || `${stock.symbol} Inc.`,
@@ -44,7 +57,7 @@ export const useStocks = () => {
         change: stock.data.change || 0,
         description: stock.data.description || `Description for ${stock.symbol}`,
         news: stock.data.news || [],
-        chartData: (stock.data.chartData || []).map((point: any) => ({
+        chartData: (stock.data.chartData || []).map(point => ({
           value: parseFloat(point.value),
           date: point.date
         }))

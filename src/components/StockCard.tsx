@@ -18,6 +18,15 @@ interface StockCardProps {
   onSwipe: (direction: "left" | "right") => void;
 }
 
+interface StockData {
+  name: string;
+  price: number;
+  change: number;
+  description: string;
+  chartData: Array<{ value: number; date: string }>;
+  news: Array<{ id: string; title: string; summary: string; date: string; url: string }>;
+}
+
 export const StockCard = ({ stock, onSwipe }: StockCardProps) => {
   const [currentTimeframe, setCurrentTimeframe] = useState<'1D' | '5D' | '30D' | '1Y'>('30D');
   const x = useMotionValue(0);
@@ -53,7 +62,7 @@ export const StockCard = ({ stock, onSwipe }: StockCardProps) => {
           throw error;
         }
 
-        return data?.data || null;
+        return data?.data as StockData | null;
       } catch (error) {
         console.error('Error fetching stock data:', error);
         toast({
