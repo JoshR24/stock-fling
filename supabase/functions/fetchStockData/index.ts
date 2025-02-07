@@ -14,9 +14,26 @@ serve(async (req) => {
   }
 
   try {
-    const { symbol } = await req.json();
+    // Parse request body
+    let body;
+    try {
+      body = await req.json();
+      console.log('Received request body:', body); // Debug log
+    } catch (e) {
+      console.error('Error parsing request body:', e);
+      return new Response(
+        JSON.stringify({ error: 'Invalid request body' }),
+        { 
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
+    }
+
+    const { symbol } = body;
 
     if (!symbol) {
+      console.error('Missing symbol in request');
       return new Response(
         JSON.stringify({ error: 'Symbol is required' }),
         { 
@@ -41,13 +58,17 @@ serve(async (req) => {
     // Fetch from cache
     const { data: cacheData, error: cacheError } = await supabase
       .from('stock_data_cache')
-      .select('data')
+      .select('data, last_updated')
       .eq('symbol', symbol)
       .maybeSingle();
 
-    if (cacheError) throw cacheError;
+    if (cacheError) {
+      console.error('Database error:', cacheError);
+      throw cacheError;
+    }
     
     if (!cacheData) {
+      console.error(`No data available for ${symbol}`);
       return new Response(
         JSON.stringify({ error: `No data available for ${symbol}` }),
         { 
@@ -56,6 +77,8 @@ serve(async (req) => {
         }
       );
     }
+
+    console.log(`Successfully fetched data for ${symbol}:`, cacheData);
 
     return new Response(
       JSON.stringify(cacheData.data),

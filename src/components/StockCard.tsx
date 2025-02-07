@@ -8,7 +8,7 @@ import { StockChart } from "./stock/StockChart";
 import { StockPrice } from "./stock/StockPrice";
 import { StockNews } from "./stock/StockNews";
 import { SwipeInstructions } from "./stock/SwipeInstructions";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
@@ -41,17 +41,30 @@ export const StockCard = ({ stock, onSwipe }: StockCardProps) => {
     queryKey: ['stockPrice', stock.symbol],
     queryFn: async () => {
       try {
-        console.log('Fetching data for symbol:', stock.symbol); // Debug log
+        // Check if we have a valid symbol
+        if (!stock.symbol) {
+          throw new Error('Stock symbol is missing');
+        }
+
+        console.log('Fetching data for symbol:', stock.symbol);
+        
         const { data, error } = await supabase.functions.invoke('fetchStockData', {
-          body: { symbol: stock.symbol } // Explicitly pass the symbol
+          body: { 
+            symbol: stock.symbol 
+          }
         });
 
         if (error) {
-          console.error('Error fetching stock data:', error); // Debug log
+          console.error('Error fetching stock data:', error);
           throw error;
         }
 
-        console.log('Received stock data:', data); // Debug log
+        if (!data) {
+          throw new Error('No data received from server');
+        }
+
+        console.log('Received stock data:', data);
+        
         return {
           price: data.price,
           change: data.change,
@@ -69,6 +82,8 @@ export const StockCard = ({ stock, onSwipe }: StockCardProps) => {
       }
     },
     refetchInterval: 60000, // Refetch every minute
+    retry: 3, // Retry failed requests 3 times
+    staleTime: 30000, // Consider data stale after 30 seconds
   });
 
   // Update stock data with real-time values
