@@ -19,12 +19,15 @@ interface StockCardProps {
 }
 
 interface StockData {
+  symbol: string;
   name: string;
   price: number;
   change: number;
   description: string;
+  volume: number;
   chartData: Array<{ value: number; date: string }>;
   news: Array<{ id: string; title: string; summary: string; date: string; url: string }>;
+  timestamp: number;
 }
 
 export const StockCard = ({ stock, onSwipe }: StockCardProps) => {
@@ -62,7 +65,6 @@ export const StockCard = ({ stock, onSwipe }: StockCardProps) => {
           throw error;
         }
 
-        // Cast the data to StockData type
         return data?.data as StockData;
       } catch (error) {
         console.error('Error fetching stock data:', error);

@@ -5,12 +5,15 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
 interface StockData {
+  symbol: string;
   name: string;
   price: number;
   change: number;
   description: string;
+  volume: number;
   chartData: Array<{ value: number; date: string }>;
   news: Array<{ id: string; title: string; summary: string; date: string; url: string }>;
+  timestamp: number;
 }
 
 interface StockDataCache {
@@ -54,11 +57,11 @@ export const useStocks = () => {
       const processedStocks = (availableStocks as StockDataCache[] || []).map(stock => ({
         id: stock.symbol,
         symbol: stock.symbol,
-        name: stock.data.name || `${stock.symbol} Inc.`,
-        price: stock.data.price || 0,
-        change: stock.data.change || 0,
-        description: stock.data.description || `Description for ${stock.symbol}`,
-        news: stock.data.news || [],
+        name: stock.data.name,
+        price: stock.data.price,
+        change: stock.data.change,
+        description: stock.data.description,
+        news: stock.data.news,
         chartData: stock.data.chartData?.map(point => ({
           value: point.value,
           date: point.date
