@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Stock } from "@/lib/mockStocks";
 import { ScrollArea } from "./ui/scroll-area";
@@ -9,7 +8,6 @@ import { TradeForm } from "./portfolio/TradeForm";
 import { StockList } from "./portfolio/StockList";
 import { PaperTradingDisclaimer } from "./portfolio/PaperTradingDisclaimer";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { toast } from "@/hooks/use-toast";
 
 interface PortfolioProps {
   stocks: Stock[];
@@ -21,10 +19,8 @@ export const Portfolio = ({ stocks }: PortfolioProps) => {
 
   // Set up real-time listener for stock price updates
   useEffect(() => {
-    console.log('Setting up real-time listeners for portfolio updates');
-    
     const channel = supabase
-      .channel('portfolio-updates')
+      .channel('stock-updates')
       .on(
         'postgres_changes',
         {
@@ -37,46 +33,12 @@ export const Portfolio = ({ stocks }: PortfolioProps) => {
           // Invalidate queries to trigger a refresh
           queryClient.invalidateQueries({ queryKey: ['positions'] });
           queryClient.invalidateQueries({ queryKey: ['balance'] });
-          queryClient.invalidateQueries({ queryKey: ['stockPrices'] });
-          
-          // Show toast for significant price changes
-          const newData = payload.new as any;
-          const oldData = payload.old as any;
-          if (newData.data?.price && oldData.data?.price) {
-            const changePercent = ((newData.data.price - oldData.data.price) / oldData.data.price) * 100;
-            if (Math.abs(changePercent) > 1) { // Only show for >1% changes
-              toast({
-                title: `${payload.new.symbol} Price Update`,
-                description: `${changePercent > 0 ? '📈' : '📉'} ${changePercent.toFixed(2)}% change`,
-                variant: changePercent > 0 ? "default" : "destructive",
-              });
-            }
-          }
-        }
-      )
-      .subscribe();
-
-    // Also listen for position updates
-    const positionsChannel = supabase
-      .channel('positions-updates')
-      .on(
-        'postgres_changes',
-        {
-          event: '*', // Listen to all events (INSERT, UPDATE, DELETE)
-          schema: 'public',
-          table: 'paper_trading_positions'
-        },
-        (payload) => {
-          console.log('Position update:', payload);
-          queryClient.invalidateQueries({ queryKey: ['positions'] });
-          queryClient.invalidateQueries({ queryKey: ['balance'] });
         }
       )
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
-      supabase.removeChannel(positionsChannel);
     };
   }, [queryClient]);
 
