@@ -70,31 +70,90 @@ serve(async (req) => {
     // Update cache for each stock
     for (const stock of stocks) {
       try {
-        // Fetch latest stock data from Polygon
-        const response = await fetch(
+        // 1. Fetch latest stock data from Polygon
+        const dailyResponse = await fetch(
           `https://api.polygon.io/v2/aggs/ticker/${stock.symbol}/prev?adjusted=true&apiKey=${POLYGON_API_KEY}`
         );
 
-        if (!response.ok) {
-          console.error(`Failed to fetch data for ${stock.symbol}:`, response.statusText);
+        if (!dailyResponse.ok) {
+          console.error(`Failed to fetch daily data for ${stock.symbol}:`, dailyResponse.statusText);
           continue;
         }
 
-        const polygonData = await response.json();
+        const dailyData = await dailyResponse.json();
         
-        if (!polygonData.results?.[0]) {
-          console.error(`No data available for ${stock.symbol}`);
+        if (!dailyData.results?.[0]) {
+          console.error(`No daily data available for ${stock.symbol}`);
           continue;
+        }
+
+        // 2. Fetch historical data (30 days)
+        const toDate = new Date();
+        const fromDate = new Date();
+        fromDate.setDate(fromDate.getDate() - 30);
+
+        const historicalResponse = await fetch(
+          `https://api.polygon.io/v2/aggs/ticker/${stock.symbol}/range/1/day/${fromDate.toISOString().split('T')[0]}/${toDate.toISOString().split('T')[0]}?adjusted=true&apiKey=${POLYGON_API_KEY}`
+        );
+
+        let chartData = [];
+        if (historicalResponse.ok) {
+          const historicalData = await historicalResponse.json();
+          if (historicalData.results) {
+            chartData = historicalData.results.map((item: any) => ({
+              value: item.c,
+              date: new Date(item.t).toISOString().split('T')[0]
+            }));
+          }
+        }
+
+        // 3. Fetch company details
+        const detailsResponse = await fetch(
+          `https://api.polygon.io/v3/reference/tickers/${stock.symbol}?apiKey=${POLYGON_API_KEY}`
+        );
+
+        let companyName = `${stock.symbol} Stock`;
+        let description = `Trading data for ${stock.symbol}`;
+        
+        if (detailsResponse.ok) {
+          const detailsData = await detailsResponse.json();
+          if (detailsData.results) {
+            companyName = detailsData.results.name || companyName;
+            description = detailsData.results.description || description;
+          }
+        }
+
+        // 4. Fetch news
+        const newsResponse = await fetch(
+          `https://api.polygon.io/v2/reference/news?ticker=${stock.symbol}&order=desc&limit=5&apiKey=${POLYGON_API_KEY}`
+        );
+
+        let news = [];
+        if (newsResponse.ok) {
+          const newsData = await newsResponse.json();
+          if (newsData.results) {
+            news = newsData.results.map((item: any) => ({
+              id: item.id,
+              title: item.title,
+              summary: item.description,
+              date: new Date(item.published_utc).toLocaleDateString(),
+              url: item.article_url
+            }));
+          }
         }
 
         const result = {
           symbol: stock.symbol,
-          price: polygonData.results[0].c,
-          change: polygonData.results[0].c && polygonData.results[0].o 
-            ? ((polygonData.results[0].c - polygonData.results[0].o) / polygonData.results[0].o * 100)
+          name: companyName,
+          price: dailyData.results[0].c,
+          change: dailyData.results[0].c && dailyData.results[0].o 
+            ? ((dailyData.results[0].c - dailyData.results[0].o) / dailyData.results[0].o * 100)
             : 0,
-          volume: polygonData.results[0].v,
-          timestamp: polygonData.results[0].t
+          volume: dailyData.results[0].v,
+          description,
+          chartData,
+          news,
+          timestamp: dailyData.results[0].t
         };
 
         // Update stock_data_cache
