@@ -59,7 +59,7 @@ async function fetchPolygonPrice(symbol: string) {
   console.log(`[${new Date().toISOString()}] Fetching real-time price for ${symbol}`);
   
   const quoteResponse = await fetch(
-    `https://api.polygon.io/v2/aggs/ticker/${symbol}/prev?adjusted=true&apiKey=${POLYGON_API_KEY}`
+    `https://api.polygon.io/v2/last/trade/${symbol}?apiKey=${POLYGON_API_KEY}`
   );
 
   if (!quoteResponse.ok) {
@@ -68,13 +68,11 @@ async function fetchPolygonPrice(symbol: string) {
   }
 
   const quoteData = await quoteResponse.json();
-  console.log(`[${new Date().toISOString()}] Received price data for ${symbol}:`, JSON.stringify(quoteData.results?.[0]));
+  console.log(`[${new Date().toISOString()}] Received price data for ${symbol}:`, JSON.stringify(quoteData));
   
   return {
-    price: quoteData.results?.[0]?.c || 0,
-    change: quoteData.results?.[0]?.c && quoteData.results?.[0]?.o 
-      ? ((quoteData.results[0].c - quoteData.results[0].o) / quoteData.results[0].o * 100)
-      : 0
+    price: quoteData.results?.p || 0,  // p is the price of the trade
+    change: 0 // We'll need to calculate this differently with real-time data
   };
 }
 
