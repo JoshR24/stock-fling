@@ -30,7 +30,7 @@ async function getStockDataFromCache(symbol: string) {
   const lastUpdate = new Date(data.last_updated).getTime();
   
   // Always fetch fresh price data
-  console.log(`Fetching real-time price for ${symbol}`);
+  console.log(`[${new Date().toISOString()}] Fetching real-time price for ${symbol}`);
   const freshPriceData = await fetchPolygonPrice(symbol);
   
   if (data) {
@@ -38,7 +38,7 @@ async function getStockDataFromCache(symbol: string) {
     
     // If company details are recent enough, combine with fresh price
     if (currentTime - lastUpdate < DETAILS_CACHE_DURATION) {
-      console.log(`Using cached company data for ${symbol}`);
+      console.log(`[${new Date().toISOString()}] Using cached company data for ${symbol}`);
       return {
         ...cachedData,
         price: freshPriceData.price,
@@ -56,17 +56,19 @@ async function fetchPolygonPrice(symbol: string) {
     throw new Error('Polygon API key not configured');
   }
 
-  console.log(`Fetching real-time price for ${symbol}`);
+  console.log(`[${new Date().toISOString()}] Fetching real-time price for ${symbol}`);
   
   const quoteResponse = await fetch(
     `https://api.polygon.io/v2/aggs/ticker/${symbol}/prev?adjusted=true&apiKey=${POLYGON_API_KEY}`
   );
 
   if (!quoteResponse.ok) {
+    console.error(`Failed to fetch quote data for ${symbol}: ${quoteResponse.status}`);
     throw new Error(`Failed to fetch quote data for ${symbol}`);
   }
 
   const quoteData = await quoteResponse.json();
+  console.log(`[${new Date().toISOString()}] Received price data for ${symbol}:`, JSON.stringify(quoteData.results?.[0]));
   
   return {
     price: quoteData.results?.[0]?.c || 0,
@@ -111,7 +113,7 @@ async function getAllTickers() {
 }
 
 async function fetchPolygonData(symbol: string) {
-  console.log(`Fetching complete data from Polygon for ${symbol}`);
+  console.log(`[${new Date().toISOString()}] Fetching complete data from Polygon for ${symbol}`);
   
   const POLYGON_API_KEY = Deno.env.get('POLYGON_API_KEY');
   if (!POLYGON_API_KEY) {
@@ -193,9 +195,9 @@ async function initializeStockCache() {
         try {
           const data = await fetchPolygonData(symbol);
           await updateStockDataCache(symbol, data);
-          console.log(`Cached data for ${symbol}`);
+          console.log(`[${new Date().toISOString()}] Cached data for ${symbol}`);
         } catch (error) {
-          console.error(`Failed to cache data for ${symbol}:`, error);
+          console.error(`[${new Date().toISOString()}] Failed to cache data for ${symbol}:`, error);
         }
       }));
 
