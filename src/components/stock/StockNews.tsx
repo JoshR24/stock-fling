@@ -1,3 +1,4 @@
+
 import { Stock } from "@/lib/mockStocks";
 import { ExternalLink } from "lucide-react";
 
@@ -6,6 +7,16 @@ interface StockNewsProps {
 }
 
 export const StockNews = ({ stock }: StockNewsProps) => {
+  // Early return with a message if no news is available
+  if (!stock.news || stock.news.length === 0) {
+    return (
+      <div className="space-y-4">
+        <h3 className="font-semibold text-lg">Recent News</h3>
+        <p className="text-muted-foreground">No recent news available for {stock.symbol}</p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4">
       <h3 className="font-semibold text-lg">Recent News</h3>
