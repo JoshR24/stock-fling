@@ -31,7 +31,7 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    // Fetch active stocks from our database
+    // Get active stocks from database
     const { data: stocks, error: stocksError } = await supabase
       .from('stocks')
       .select('symbol')
@@ -39,7 +39,7 @@ serve(async (req) => {
 
     if (stocksError) throw stocksError;
 
-    // If no stocks found, add some initial ones
+    // If no stocks found, add initial ones
     if (!stocks || stocks.length === 0) {
       const initialStocks = ['AAPL', 'GOOGL', 'MSFT', 'AMZN', 'META', 'TSLA', 'NVDA', 'JPM', 'V', 'WMT'];
       
@@ -48,7 +48,7 @@ serve(async (req) => {
       for (const symbol of initialStocks) {
         await supabase
           .from('stocks')
-          .insert({ symbol })
+          .insert({ symbol, status: 'active' })
           .select()
           .maybeSingle();
       }
@@ -62,15 +62,16 @@ serve(async (req) => {
       if (newStocksError) throw newStocksError;
       if (!newStocks) throw new Error('Failed to fetch new stocks');
       
-      stocks = newStocks;
+      console.log('Successfully added initial stocks');
     }
 
-    console.log(`Updating cache for ${stocks.length} stocks`);
-
     // Update cache for each stock
-    for (const stock of stocks) {
+    const activeStocks = stocks || [];
+    console.log(`Updating cache for ${activeStocks.length} stocks`);
+
+    for (const stock of activeStocks) {
       try {
-        // Fetch latest stock data from Polygon
+        // Fetch stock data from Polygon
         const response = await fetch(
           `https://api.polygon.io/v2/aggs/ticker/${stock.symbol}/prev?adjusted=true&apiKey=${POLYGON_API_KEY}`
         );
@@ -87,24 +88,22 @@ serve(async (req) => {
           continue;
         }
 
-        const result = {
+        const stockData = {
           symbol: stock.symbol,
-          price: polygonData.results[0].c,
-          change: polygonData.results[0].c && polygonData.results[0].o 
-            ? ((polygonData.results[0].c - polygonData.results[0].o) / polygonData.results[0].o * 100)
-            : 0,
-          volume: polygonData.results[0].v,
-          timestamp: polygonData.results[0].t
+          data: {
+            price: polygonData.results[0].c,
+            change: ((polygonData.results[0].c - polygonData.results[0].o) / polygonData.results[0].o * 100),
+            name: `${stock.symbol} Inc.`,
+            description: `Description for ${stock.symbol}`,
+            chartData: [],
+            news: []
+          }
         };
 
         // Update stock_data_cache
         const { error: updateError } = await supabase
           .from('stock_data_cache')
-          .upsert({
-            symbol: stock.symbol,
-            data: result
-          })
-          .select();
+          .upsert(stockData);
 
         if (updateError) {
           console.error(`Failed to update cache for ${stock.symbol}:`, updateError);
@@ -118,21 +117,13 @@ serve(async (req) => {
         continue;
       }
 
-      // Add a small delay between requests to avoid hitting rate limits
+      // Add a small delay between requests to avoid rate limits
       await new Promise(resolve => setTimeout(resolve, 100));
     }
 
     return new Response(
-      JSON.stringify({ 
-        success: true, 
-        message: `Successfully updated cache for ${stocks.length} stocks` 
-      }),
-      { 
-        headers: { 
-          ...corsHeaders,
-          'Content-Type': 'application/json'
-        } 
-      }
+      JSON.stringify({ success: true }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
@@ -140,8 +131,8 @@ serve(async (req) => {
     
     return new Response(
       JSON.stringify({ 
-        success: false,
-        error: error.message || 'Failed to update stock cache'
+        error: error.message || 'Failed to update stock cache',
+        details: error.toString()
       }),
       { 
         status: 500,

@@ -1,3 +1,4 @@
+
 import { useState, useCallback, useEffect } from "react";
 import { Stock, generateStockBatch } from "@/lib/mockStocks";
 import { StockCard } from "@/components/StockCard";
@@ -20,16 +21,25 @@ const Index = ({ showPortfolio: initialShowPortfolio = false }: IndexProps) => {
   // Function to initialize the stock cache
   const initializeStockCache = async () => {
     try {
-      const { data, error } = await supabase.functions.invoke('fetchStockData', {
-        body: { initialize: true }
+      // First try to update the cache
+      const { data: updateData, error: updateError } = await supabase.functions.invoke('updateStockCache');
+      if (updateError) throw updateError;
+      
+      console.log('Cache initialization response:', updateData);
+      
+      // If successful, try to fetch stock data
+      const { data: fetchData, error: fetchError } = await supabase.functions.invoke('fetchStockData', {
+        body: { symbol: 'AAPL' } // Test with a known stock
       });
-
-      if (error) throw error;
-      console.log('Cache initialization response:', data);
+      
+      if (fetchError) throw fetchError;
+      
+      console.log('Test fetch response:', fetchData);
+      
     } catch (error) {
       console.error('Error initializing cache:', error);
       toast({
-        title: "Error",
+        title: "Cache Initialization Error",
         description: "Failed to initialize stock cache. Please try again later.",
         variant: "destructive",
       });
