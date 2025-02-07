@@ -71,32 +71,50 @@ serve(async (req) => {
 
     for (const stock of activeStocks) {
       try {
-        // Fetch stock data from Polygon
-        const response = await fetch(
+        // Fetch current day's data from Polygon
+        const currentResponse = await fetch(
           `https://api.polygon.io/v2/aggs/ticker/${stock.symbol}/prev?adjusted=true&apiKey=${POLYGON_API_KEY}`
         );
 
-        if (!response.ok) {
-          console.error(`Failed to fetch data for ${stock.symbol}:`, response.statusText);
+        if (!currentResponse.ok) {
+          console.error(`Failed to fetch current data for ${stock.symbol}:`, currentResponse.statusText);
           continue;
         }
 
-        const polygonData = await response.json();
+        const currentData = await currentResponse.json();
         
-        if (!polygonData.results?.[0]) {
-          console.error(`No data available for ${stock.symbol}`);
+        if (!currentData.results?.[0]) {
+          console.error(`No current data available for ${stock.symbol}`);
           continue;
         }
+
+        // Fetch historical data for chart
+        const historicalResponse = await fetch(
+          `https://api.polygon.io/v2/aggs/ticker/${stock.symbol}/range/1/day/2024-01-01/${new Date().toISOString().split('T')[0]}?adjusted=true&apiKey=${POLYGON_API_KEY}`
+        );
+
+        if (!historicalResponse.ok) {
+          console.error(`Failed to fetch historical data for ${stock.symbol}:`, historicalResponse.statusText);
+          continue;
+        }
+
+        const historicalData = await historicalResponse.json();
+        
+        // Transform historical data into chart format
+        const chartData = (historicalData.results || []).map((day: any) => ({
+          value: day.c,
+          date: new Date(day.t).toISOString().split('T')[0]
+        }));
 
         const stockData = {
           symbol: stock.symbol,
           data: {
-            price: polygonData.results[0].c,
-            change: ((polygonData.results[0].c - polygonData.results[0].o) / polygonData.results[0].o * 100),
-            name: `${stock.symbol} Inc.`,
-            description: `Description for ${stock.symbol}`,
-            chartData: [],
-            news: []
+            price: currentData.results[0].c,
+            change: ((currentData.results[0].c - currentData.results[0].o) / currentData.results[0].o * 100),
+            name: `${stock.symbol} Stock`,
+            description: `${stock.symbol} is a publicly traded company.`,
+            chartData: chartData,
+            news: [] // We'll add news integration later
           }
         };
 
