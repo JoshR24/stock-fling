@@ -11,9 +11,8 @@ const supabase = createClient(
   Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
 )
 
-// Reduced cache duration to 10 seconds for price data
-const PRICE_CACHE_DURATION = 1000 * 10; // 10 seconds cache for prices
-const DETAILS_CACHE_DURATION = 1000 * 60 * 60; // 1 hour cache for company details, news, etc.
+// Cache duration for company details and news
+const DETAILS_CACHE_DURATION = 1000 * 60 * 60; // 1 hour
 
 async function getStockDataFromCache(symbol: string) {
   const { data, error } = await supabase
@@ -29,20 +28,17 @@ async function getStockDataFromCache(symbol: string) {
 
   const currentTime = Date.now();
   const lastUpdate = new Date(data.last_updated).getTime();
-
-  // Only use cache if it's recent enough
+  
+  // Always fetch fresh price data
+  console.log(`Fetching real-time price for ${symbol}`);
+  const freshPriceData = await fetchPolygonPrice(symbol);
+  
   if (data) {
     const cachedData = data.data;
     
-    // If price data is recent enough, use it
-    if (currentTime - lastUpdate < PRICE_CACHE_DURATION) {
-      console.log(`Using fully cached data for ${symbol}`);
-      return cachedData;
-    } 
-    // If only company details are needed and they're recent enough, update just the price
-    else if (currentTime - lastUpdate < DETAILS_CACHE_DURATION) {
-      console.log(`Updating only price data for ${symbol}`);
-      const freshPriceData = await fetchPolygonPrice(symbol);
+    // If company details are recent enough, combine with fresh price
+    if (currentTime - lastUpdate < DETAILS_CACHE_DURATION) {
+      console.log(`Using cached company data for ${symbol}`);
       return {
         ...cachedData,
         price: freshPriceData.price,
@@ -122,7 +118,7 @@ async function fetchPolygonData(symbol: string) {
     throw new Error('Polygon API key not configured');
   }
 
-  // Fetch real-time price data
+  // Always fetch fresh price data
   const priceData = await fetchPolygonPrice(symbol);
 
   // Fetch company details
@@ -164,7 +160,7 @@ async function fetchPolygonData(symbol: string) {
   }
 
   // Format the data
-  const result = {
+  return {
     symbol,
     name: detailsData.results.name || symbol,
     price: priceData.price,
@@ -182,8 +178,6 @@ async function fetchPolygonData(symbol: string) {
       url: article.article_url || ''
     }))
   };
-
-  return result;
 }
 
 async function initializeStockCache() {
