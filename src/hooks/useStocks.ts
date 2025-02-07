@@ -54,7 +54,7 @@ export const useStocks = () => {
         throw error;
       }
 
-      const processedStocks = (availableStocks as StockDataCache[] || []).map(stock => ({
+      const processedStocks = (availableStocks as unknown as StockDataCache[] || []).map(stock => ({
         id: stock.symbol,
         symbol: stock.symbol,
         name: stock.data.name,
