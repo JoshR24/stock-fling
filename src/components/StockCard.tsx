@@ -47,7 +47,7 @@ export const StockCard = ({ stock, onSwipe, visibleStocks }: StockCardProps) => 
   );
 
   // Fetch real-time stock data for all visible stocks
-  const { data: stocksData } = useQuery({
+  const { data: stocksData = [], isError } = useQuery({
     queryKey: ['stockPrices', visibleStocks.map(s => s.symbol)],
     queryFn: async () => {
       try {
@@ -56,7 +56,7 @@ export const StockCard = ({ stock, onSwipe, visibleStocks }: StockCardProps) => 
         });
 
         if (error) throw error;
-        return data;
+        return Array.isArray(data) ? data : [];
       } catch (error) {
         console.error('Error fetching stock data:', error);
         toast({
@@ -71,7 +71,9 @@ export const StockCard = ({ stock, onSwipe, visibleStocks }: StockCardProps) => 
   });
 
   // Get the current stock's data from the batch response
-  const currentStockData = stocksData?.find((s: any) => s.symbol === stock.symbol);
+  const currentStockData = Array.isArray(stocksData) 
+    ? stocksData.find((s: any) => s.symbol === stock.symbol)
+    : null;
 
   // Set up real-time listener for stock price updates
   useEffect(() => {
@@ -160,3 +162,4 @@ export const StockCard = ({ stock, onSwipe, visibleStocks }: StockCardProps) => 
     </motion.div>
   );
 };
+
