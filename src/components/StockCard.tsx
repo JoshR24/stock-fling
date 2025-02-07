@@ -41,6 +41,10 @@ export const StockCard = ({ stock, onSwipe }: StockCardProps) => {
     queryKey: ['stockPrice', stock.symbol],
     queryFn: async () => {
       try {
+        if (!stock.symbol) {
+          throw new Error('Stock symbol is required');
+        }
+
         console.log('Fetching stock data for:', stock.symbol);
         const { data, error } = await supabase.functions.invoke('fetchStockData', {
           body: { symbol: stock.symbol }
@@ -61,7 +65,7 @@ export const StockCard = ({ stock, onSwipe }: StockCardProps) => {
         console.error('Error fetching stock data:', error);
         toast({
           title: "Error",
-          description: "Failed to fetch stock data. Please try again later.",
+          description: "Failed to fetch stock data. Using cached data.",
           variant: "destructive",
         });
         return null;
@@ -70,7 +74,7 @@ export const StockCard = ({ stock, onSwipe }: StockCardProps) => {
     refetchInterval: 60000, // Refetch every minute
   });
 
-  // Update stock data with real-time values
+  // Update stock data with real-time values or fallback to cached data
   const updatedStock: Stock = {
     ...stock,
     price: stockData?.price ?? stock.price,

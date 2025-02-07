@@ -7,6 +7,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useQuery } from "@tanstack/react-query";
 import { StockSwiper } from "@/components/StockSwiper";
 import { useStocks } from "@/hooks/useStocks";
+import { useNavigate } from "react-router-dom";
+import { useToast } from "@/hooks/use-toast";
 
 interface IndexProps {
   showPortfolio?: boolean;
@@ -15,6 +17,31 @@ interface IndexProps {
 const Index = ({ showPortfolio: initialShowPortfolio = false }: IndexProps) => {
   const [showPortfolio, setShowPortfolio] = useState(initialShowPortfolio);
   const { stocks, loadStocks, handleSwipe } = useStocks();
+  const navigate = useNavigate();
+  const { toast } = useToast();
+
+  // Check authentication status
+  useEffect(() => {
+    const checkAuth = async () => {
+      const { data: { session }, error } = await supabase.auth.getSession();
+      if (error) {
+        console.error('Error checking auth status:', error);
+        toast({
+          title: "Authentication Error",
+          description: "Please try logging in again.",
+          variant: "destructive",
+        });
+        navigate('/auth');
+        return;
+      }
+      
+      if (!session) {
+        navigate('/auth');
+      }
+    };
+
+    checkAuth();
+  }, [navigate, toast]);
 
   // Fetch positions data using React Query
   const { data: positionsData } = useQuery({
