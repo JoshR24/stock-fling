@@ -25,7 +25,7 @@ export const StockSearch = () => {
       try {
         const { data, error } = await supabase
           .from('stock_data_cache')
-          .select('symbol, data')
+          .select('*')
           .ilike('symbol', `${searchTerm}%`)
           .limit(5);
 

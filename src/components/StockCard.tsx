@@ -8,30 +8,31 @@ import { StockChart } from "./stock/StockChart";
 import { StockPrice } from "./stock/StockPrice";
 import { StockNews } from "./stock/StockNews";
 import { SwipeInstructions } from "./stock/SwipeInstructions";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 
 interface StockCardProps {
   stock: Stock;
   onSwipe: (direction: "left" | "right") => void;
+  visibleStocks: Stock[];
 }
 
-interface StockData {
-  name: string;
+interface StockCacheData {
   price: number;
   change: number;
-  description: string;
-  chartData: Array<{ value: number; date: string }>;
-  news: Array<{ id: string; title: string; summary: string; date: string; url: string }>;
+  chartData?: any;
+  news?: any[];
+  name?: string;
 }
 
-export const StockCard = ({ stock, onSwipe }: StockCardProps) => {
+export const StockCard = ({ stock, onSwipe, visibleStocks }: StockCardProps) => {
   const [currentTimeframe, setCurrentTimeframe] = useState<'1D' | '5D' | '30D' | '1Y'>('30D');
   const x = useMotionValue(0);
   const rotate = useTransform(x, [-200, 200], [-30, 30]);
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   
   const redOverlayOpacity = useTransform(
     x,
@@ -45,47 +46,67 @@ export const StockCard = ({ stock, onSwipe }: StockCardProps) => {
     [0, 0.15, 0.3]
   );
 
-  // Fetch real-time stock data
-  const { data: stockData } = useQuery({
-    queryKey: ['stockData', stock.symbol],
+  // Fetch real-time stock data for all visible stocks
+  const { data: stocksData = [], isError } = useQuery({
+    queryKey: ['stockPrices', visibleStocks.map(s => s.symbol)],
     queryFn: async () => {
       try {
-        console.log('Fetching data from cache for:', stock.symbol);
-        const { data, error } = await supabase
-          .from('stock_data_cache')
-          .select('data')
-          .eq('symbol', stock.symbol)
-          .single();
+        const { data, error } = await supabase.functions.invoke('fetchStockData', {
+          body: { symbols: visibleStocks.map(s => s.symbol) }
+        });
 
-        if (error) {
-          console.error('Error fetching stock data:', error);
-          throw error;
-        }
-
-        // Cast the data to StockData type
-        return data?.data as StockData;
+        if (error) throw error;
+        return Array.isArray(data) ? data : [];
       } catch (error) {
         console.error('Error fetching stock data:', error);
         toast({
           title: "Error",
-          description: "Failed to fetch stock data. Using cached data.",
+          description: "Failed to fetch stock data. Please try again later.",
           variant: "destructive",
         });
-        return null;
+        throw error;
       }
     },
     refetchInterval: 60000, // Refetch every minute
   });
 
-  // Update stock data with real-time values or fallback to cached data
+  // Get the current stock's data from the batch response
+  const currentStockData = Array.isArray(stocksData) 
+    ? stocksData.find((s: any) => s.symbol === stock.symbol)
+    : null;
+
+  // Set up real-time listener for stock price updates
+  useEffect(() => {
+    const channel = supabase
+      .channel('stock-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'stock_data_cache',
+          filter: `symbol=eq.${stock.symbol}`
+        },
+        (payload) => {
+          console.log('Received stock update:', payload);
+          // Invalidate queries to trigger a refresh
+          queryClient.invalidateQueries({ queryKey: ['stockPrices'] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [stock.symbol, queryClient]);
+
+  // Update stock data with real-time values
   const updatedStock: Stock = {
     ...stock,
-    price: stockData?.price ?? stock.price,
-    change: stockData?.change ?? stock.change,
-    chartData: stockData?.chartData ?? stock.chartData,
-    news: stockData?.news ?? stock.news,
-    name: stockData?.name ?? stock.name,
-    description: stockData?.description ?? stock.description
+    price: currentStockData?.price ?? stock.price,
+    change: currentStockData?.change ?? stock.change,
+    chartData: currentStockData?.chartData ?? stock.chartData,
+    news: currentStockData?.news ?? stock.news,
   };
 
   return (
@@ -141,3 +162,4 @@ export const StockCard = ({ stock, onSwipe }: StockCardProps) => {
     </motion.div>
   );
 };
+

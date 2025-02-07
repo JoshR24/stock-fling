@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 
 export interface Stock {
@@ -49,9 +48,9 @@ export const generateStockBatch = async (): Promise<Stock[]> => {
     // First get all available stock symbols
     const { data: availableStocks, error } = await supabase
       .from('stock_data_cache')
-      .select('symbol, data, last_updated')
+      .select('*')
       .not('symbol', 'in', `(${Array.from(positionSymbols).map(s => `'${s}'`).join(',')})`)
-      .order('last_updated', { ascending: false });
+      .order('last_updated');
 
     if (error) {
       console.error('Error fetching stocks:', error);
@@ -63,24 +62,24 @@ export const generateStockBatch = async (): Promise<Stock[]> => {
       return [];
     }
 
-    // Process the stocks array
-    const processedStocks = (availableStocks as StockDataCache[])
+    // Shuffle the stocks array in memory
+    const shuffledStocks = (availableStocks as StockDataCache[])
       .map(stock => ({
         id: stock.symbol,
         symbol: stock.symbol,
-        name: stock.data.name || `${stock.symbol} Inc.`,
-        price: stock.data.price || 0,
-        change: stock.data.change || 0,
-        description: stock.data.description || `Description for ${stock.symbol}`,
-        news: stock.data.news || [],
-        chartData: (stock.data.chartData || []).map((point: any) => ({
+        name: stock.data.name,
+        price: stock.data.price,
+        change: stock.data.change,
+        description: stock.data.description,
+        news: stock.data.news,
+        chartData: stock.data.chartData.map((point: any) => ({
           value: parseFloat(point.value)
         }))
       }))
-      .sort(() => Math.random() - 0.5); // Shuffle the stocks
+      .sort(() => Math.random() - 0.5);
 
-    console.log('Processed stocks:', processedStocks.length);
-    return processedStocks;
+    console.log('Shuffled and processed stocks:', shuffledStocks.length);
+    return shuffledStocks;
 
   } catch (error) {
     console.error('Error generating stock batch:', error);

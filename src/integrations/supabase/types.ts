@@ -342,37 +342,13 @@ export type Database = {
           symbol: string
         }
         Insert: {
-          data?: Json
+          data: Json
           last_updated?: string
           symbol: string
         }
         Update: {
           data?: Json
           last_updated?: string
-          symbol?: string
-        }
-        Relationships: []
-      }
-      stocks: {
-        Row: {
-          created_at: string | null
-          last_updated: string | null
-          name: string | null
-          status: Database["public"]["Enums"]["stock_status"] | null
-          symbol: string
-        }
-        Insert: {
-          created_at?: string | null
-          last_updated?: string | null
-          name?: string | null
-          status?: Database["public"]["Enums"]["stock_status"] | null
-          symbol: string
-        }
-        Update: {
-          created_at?: string | null
-          last_updated?: string | null
-          name?: string | null
-          status?: Database["public"]["Enums"]["stock_status"] | null
           symbol?: string
         }
         Relationships: []
@@ -385,7 +361,6 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      stock_status: "active" | "inactive" | "delisted"
       transaction_type: "buy" | "sell"
     }
     CompositeTypes: {
