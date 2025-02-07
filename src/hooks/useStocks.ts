@@ -1,6 +1,6 @@
 
 import { useState, useCallback } from "react";
-import { Stock, generateStockBatch } from "@/lib/mockStocks";
+import { Stock } from "@/lib/mockStocks";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -10,11 +10,51 @@ export const useStocks = () => {
 
   const loadStocks = async () => {
     try {
-      const newStocks = await generateStockBatch();
+      // Get user's positions to exclude them
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        throw new Error('User not authenticated');
+      }
+
+      const { data: positions } = await supabase
+        .from('paper_trading_positions')
+        .select('symbol')
+        .eq('user_id', user.id);
+
+      const positionSymbols = new Set(positions?.map(position => position.symbol) || []);
+      console.log('Position symbols to exclude:', positionSymbols);
+
+      // Fetch available stocks from cache
+      const { data: availableStocks, error } = await supabase
+        .from('stock_data_cache')
+        .select('symbol, data, last_updated')
+        .not('symbol', 'in', `(${Array.from(positionSymbols).map(s => `'${s}'`).join(',')})`)
+        .order('last_updated', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching stocks:', error);
+        throw error;
+      }
+
+      const processedStocks = (availableStocks || []).map(stock => ({
+        id: stock.symbol,
+        symbol: stock.symbol,
+        name: stock.data.name || `${stock.symbol} Inc.`,
+        price: stock.data.price || 0,
+        change: stock.data.change || 0,
+        description: stock.data.description || `Description for ${stock.symbol}`,
+        news: stock.data.news || [],
+        chartData: (stock.data.chartData || []).map((point: any) => ({
+          value: parseFloat(point.value),
+          date: point.date
+        }))
+      }));
+
       setStocks(prev => {
         const existingSymbols = new Set(prev.map(s => s.symbol));
-        return [...prev, ...newStocks.filter(s => !existingSymbols.has(s.symbol))];
+        return [...prev, ...processedStocks.filter(s => !existingSymbols.has(s.symbol))];
       });
+
     } catch (error) {
       console.error('Error loading stocks:', error);
       toast({
