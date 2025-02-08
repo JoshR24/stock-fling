@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Stock } from "@/lib/mockStocks";
 import { ScrollArea } from "./ui/scroll-area";
@@ -8,6 +9,7 @@ import { TradeForm } from "./portfolio/TradeForm";
 import { StockList } from "./portfolio/StockList";
 import { PaperTradingDisclaimer } from "./portfolio/PaperTradingDisclaimer";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { LoadingPortfolio } from "./portfolio/LoadingPortfolio";
 
 interface PortfolioProps {
   stocks: Stock[];
@@ -42,7 +44,7 @@ export const Portfolio = ({ stocks }: PortfolioProps) => {
     };
   }, [queryClient]);
 
-  const { data: balanceData } = useQuery({
+  const { data: balanceData, isLoading: isBalanceLoading } = useQuery({
     queryKey: ['balance'],
     queryFn: async () => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -67,10 +69,10 @@ export const Portfolio = ({ stocks }: PortfolioProps) => {
     setSelectedStock(null);
   };
 
-  if (stocks.length === 0) {
+  if (stocks.length === 0 || isBalanceLoading) {
     return (
       <div className="h-full flex items-center justify-center">
-        <p className="text-muted-foreground">No stocks available.</p>
+        <LoadingPortfolio />
       </div>
     );
   }
