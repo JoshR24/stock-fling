@@ -1,3 +1,4 @@
+
 import { Card } from "../ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "../ui/table";
 import { DollarSign, TrendingDown, TrendingUp } from "lucide-react";
@@ -6,7 +7,7 @@ import { Badge } from "../ui/badge";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 
 interface Position {
   symbol: string;
@@ -28,64 +29,63 @@ export const PortfolioPositions = ({ stocks }: PortfolioPositionsProps) => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: positions = [], isLoading } = useQuery({
-    queryKey: ['positions'],
+  // Combined query for positions and stock prices
+  const { data: portfolioData, isLoading } = useQuery({
+    queryKey: ['portfolio'],
     queryFn: async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
 
-      const { data, error: positionsError } = await supabase
+      // Fetch positions
+      const { data: positions, error: positionsError } = await supabase
         .from('paper_trading_positions')
         .select('*')
         .eq('user_id', user.id);
 
       if (positionsError) throw positionsError;
-      return data as Position[] || [];
-    }
-  });
 
-  // Fetch current stock prices from cache
-  const { data: stockPrices = [] } = useQuery({
-    queryKey: ['stockPrices', positions.map(p => p.symbol)],
-    queryFn: async () => {
-      if (positions.length === 0) return [];
-      
-      try {
-        const { data, error } = await supabase
-          .from('stock_data_cache')
-          .select('*')
-          .in('symbol', positions.map(p => p.symbol));
-
-        if (error) {
-          toast({
-            title: "Error fetching stock prices",
-            description: "Please try again later",
-            variant: "destructive",
-          });
-          throw error;
-        }
-
-        return (data || []).map(item => {
-          const stockData = item.data as any;
-          return {
-            symbol: item.symbol,
-            currentPrice: stockData.price || 0,
-            change: stockData.change || 0
-          } as StockPrice;
-        });
-      } catch (error) {
-        console.error('Error fetching stock prices:', error);
-        return [];
+      if (!positions || positions.length === 0) {
+        return { positions: [], stockPrices: [] };
       }
+
+      // Fetch current stock prices for positions
+      const { data: stockData, error: pricesError } = await supabase
+        .from('stock_data_cache')
+        .select('*')
+        .in('symbol', positions.map(p => p.symbol));
+
+      if (pricesError) {
+        toast({
+          title: "Error fetching stock prices",
+          description: "Please try again later",
+          variant: "destructive",
+        });
+        throw pricesError;
+      }
+
+      const stockPrices = (stockData || []).map(item => {
+        const stockInfo = item.data as any;
+        return {
+          symbol: item.symbol,
+          currentPrice: stockInfo.price || 0,
+          change: stockInfo.change || 0
+        } as StockPrice;
+      });
+
+      return {
+        positions: positions as Position[],
+        stockPrices
+      };
     },
-    enabled: positions.length > 0,
-    refetchInterval: 10000, // Refetch every 10 seconds
+    staleTime: 10000, // Consider data fresh for 10 seconds
+    cacheTime: 5 * 60 * 1000, // Keep in cache for 5 minutes
   });
 
   // Set up real-time listener for stock price updates
   useEffect(() => {
-    if (positions.length === 0) return;
+    if (!portfolioData?.positions.length) return;
 
+    const symbols = portfolioData.positions.map(p => p.symbol);
     const channel = supabase
       .channel('stock-price-updates')
       .on(
@@ -94,12 +94,11 @@ export const PortfolioPositions = ({ stocks }: PortfolioPositionsProps) => {
           event: 'UPDATE',
           schema: 'public',
           table: 'stock_data_cache',
-          filter: `symbol=in.(${positions.map(p => `'${p.symbol}'`).join(',')})`,
+          filter: `symbol=in.(${symbols.map(s => `'${s}'`).join(',')})`,
         },
         (payload) => {
           console.log('Received stock update:', payload);
-          // Invalidate queries to trigger a refresh
-          queryClient.invalidateQueries({ queryKey: ['stockPrices'] });
+          queryClient.invalidateQueries({ queryKey: ['portfolio'] });
         }
       )
       .subscribe();
@@ -107,24 +106,29 @@ export const PortfolioPositions = ({ stocks }: PortfolioPositionsProps) => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [positions.length, queryClient]);
+  }, [portfolioData?.positions.length, queryClient]);
 
-  const getCurrentPrice = (symbol: string) => {
-    const stockData = stockPrices.find(s => s.symbol === symbol);
-    return stockData?.currentPrice || 0;
-  };
+  // Memoize calculations
+  const { totalValue, totalGainLoss } = useMemo(() => {
+    if (!portfolioData) return { totalValue: 0, totalGainLoss: 0 };
 
-  const totalValue = positions.reduce((sum, position) => {
-    const currentPrice = getCurrentPrice(position.symbol);
-    return sum + (position.quantity * currentPrice);
-  }, 0);
+    const { positions, stockPrices } = portfolioData;
 
-  const totalGainLoss = positions.reduce((sum, position) => {
-    const currentPrice = getCurrentPrice(position.symbol);
-    const currentValue = position.quantity * currentPrice;
-    const costBasis = position.quantity * position.average_price;
-    return sum + (currentValue - costBasis);
-  }, 0);
+    const totals = positions.reduce((acc, position) => {
+      const stockPrice = stockPrices.find(s => s.symbol === position.symbol);
+      if (!stockPrice) return acc;
+
+      const currentValue = position.quantity * stockPrice.currentPrice;
+      const costBasis = position.quantity * position.average_price;
+      
+      return {
+        totalValue: acc.totalValue + currentValue,
+        totalGainLoss: acc.totalGainLoss + (currentValue - costBasis)
+      };
+    }, { totalValue: 0, totalGainLoss: 0 });
+
+    return totals;
+  }, [portfolioData]);
 
   if (isLoading) {
     return (
@@ -134,7 +138,7 @@ export const PortfolioPositions = ({ stocks }: PortfolioPositionsProps) => {
     );
   }
 
-  if (!positions || positions.length === 0) {
+  if (!portfolioData?.positions || portfolioData.positions.length === 0) {
     return (
       <Card className="p-2">
         <p className="text-center text-muted-foreground">No positions found. Start trading to see your portfolio here!</p>
@@ -181,9 +185,11 @@ export const PortfolioPositions = ({ stocks }: PortfolioPositionsProps) => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {positions.map((position) => {
-                const currentPrice = getCurrentPrice(position.symbol);
-                const currentValue = position.quantity * currentPrice;
+              {portfolioData.positions.map((position) => {
+                const stockPrice = portfolioData.stockPrices.find(s => s.symbol === position.symbol);
+                if (!stockPrice) return null;
+
+                const currentValue = position.quantity * stockPrice.currentPrice;
                 const costBasis = position.quantity * position.average_price;
                 const gainLoss = currentValue - costBasis;
                 const gainLossPercent = costBasis !== 0 ? (gainLoss / costBasis) * 100 : 0;
@@ -192,7 +198,7 @@ export const PortfolioPositions = ({ stocks }: PortfolioPositionsProps) => {
                   <TableRow key={position.symbol}>
                     <TableCell className="font-medium text-xs py-2">{position.symbol}</TableCell>
                     <TableCell className="text-right text-xs py-2">{position.quantity}</TableCell>
-                    <TableCell className="text-right text-xs py-2">${currentPrice.toFixed(2)}</TableCell>
+                    <TableCell className="text-right text-xs py-2">${stockPrice.currentPrice.toFixed(2)}</TableCell>
                     <TableCell className="text-right text-xs py-2">
                       <div className="flex items-center justify-end gap-1">
                         <span>${Math.abs(gainLoss).toFixed(2)}</span>
