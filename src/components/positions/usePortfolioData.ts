@@ -54,8 +54,10 @@ export const usePortfolioData = () => {
         stockPrices
       } as PortfolioData;
     },
-    staleTime: 10000,
-    gcTime: 5 * 60 * 1000,
+    staleTime: 30000, // Data stays fresh for 30 seconds
+    cacheTime: 5 * 60 * 1000, // Cache data for 5 minutes
+    refetchOnMount: false, // Don't refetch on mount if data is fresh
+    refetchOnWindowFocus: false, // Don't refetch when window regains focus
   });
 
   useEffect(() => {
