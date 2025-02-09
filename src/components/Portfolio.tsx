@@ -60,7 +60,7 @@ export const Portfolio = ({ stocks }: PortfolioProps) => {
       return data;
     },
     staleTime: 30000, // Data stays fresh for 30 seconds
-    cacheTime: 5 * 60 * 1000, // Cache data for 5 minutes
+    gcTime: 5 * 60 * 1000, // Cache data for 5 minutes
   });
 
   const handleStockSelect = (stock: Stock) => {

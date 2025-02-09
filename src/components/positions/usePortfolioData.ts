@@ -55,7 +55,7 @@ export const usePortfolioData = () => {
       } as PortfolioData;
     },
     staleTime: 30000, // Data stays fresh for 30 seconds
-    cacheTime: 5 * 60 * 1000, // Cache data for 5 minutes
+    gcTime: 5 * 60 * 1000, // Cache data for 5 minutes
     refetchOnMount: false, // Don't refetch on mount if data is fresh
     refetchOnWindowFocus: false, // Don't refetch when window regains focus
   });

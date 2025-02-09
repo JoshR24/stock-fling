@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Stock } from "@/lib/mockStocks";
 import { Card } from "../ui/card";
@@ -6,6 +7,7 @@ import { Button } from "../ui/button";
 import { Minus, Plus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface TradeFormProps {
   selectedStock: Stock;
@@ -15,6 +17,7 @@ interface TradeFormProps {
 export const TradeForm = ({ selectedStock, onTrade }: TradeFormProps) => {
   const [quantity, setQuantity] = useState<string>("");
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const handleTrade = async (type: 'buy' | 'sell') => {
     if (!selectedStock || !quantity || isNaN(Number(quantity))) {
@@ -139,6 +142,10 @@ export const TradeForm = ({ selectedStock, onTrade }: TradeFormProps) => {
             : balanceData.balance + totalAmount
         })
         .eq('user_id', user.id);
+
+      // Invalidate queries to trigger a refresh of the UI
+      queryClient.invalidateQueries({ queryKey: ['portfolio'] });
+      queryClient.invalidateQueries({ queryKey: ['balance'] });
 
       toast({
         title: "Trade executed",
