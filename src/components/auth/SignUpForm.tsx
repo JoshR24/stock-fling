@@ -52,19 +52,22 @@ export const SignUpForm = () => {
         throw new Error("This username is already taken. Please choose another one.");
       }
 
-      const { error: signUpError } = await supabase.auth.signUp({
+      // First sign up the user and wait for the response
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          data: {
+            username: username.toLowerCase() // Store username in user metadata
+          }
+        }
       });
       
       if (signUpError) throw signUpError;
+      if (!signUpData.user) throw new Error("Failed to create user account");
 
-      const { error: updateError } = await supabase
-        .from('profiles')
-        .update({ username: username.toLowerCase() })
-        .eq('id', (await supabase.auth.getUser()).data.user?.id);
-
-      if (updateError) throw updateError;
+      // Update profile with username - this is now handled by the database trigger
+      // since we included the username in the user metadata
       
       toast({
         title: "Success!",
