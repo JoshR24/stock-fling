@@ -65,7 +65,12 @@ export const StockCard = ({ stock, onSwipe }: StockCardProps) => {
           throw error;
         }
 
-        return data?.data as StockData | null;
+        const parsedData = data?.data as unknown as StockData;
+        if (!parsedData || typeof parsedData !== 'object') {
+          return null;
+        }
+
+        return parsedData;
       } catch (error) {
         console.error('Error fetching stock data:', error);
         toast({

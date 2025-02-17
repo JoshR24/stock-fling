@@ -20,6 +20,27 @@ interface FriendRequest {
   status: 'pending' | 'accepted' | 'rejected';
 }
 
+interface FriendshipResponse {
+  id: string;
+  friend: {
+    id: string;
+    username: string | null;
+    full_name: string | null;
+    avatar_url: string | null;
+  };
+}
+
+interface PendingRequestResponse {
+  id: string;
+  user: {
+    id: string;
+    username: string | null;
+    full_name: string | null;
+    avatar_url: string | null;
+  };
+  status: string;
+}
+
 export default function FriendsSection() {
   const [friendUsername, setFriendUsername] = useState("");
   const [friends, setFriends] = useState<Friend[]>([]);
@@ -59,7 +80,8 @@ export default function FriendsSection() {
     }
 
     if (data) {
-      setFriends(data.map(f => f.friend as Friend));
+      const typedData = data as FriendshipResponse[];
+      setFriends(typedData.map(f => f.friend));
     }
   };
 
@@ -92,9 +114,10 @@ export default function FriendsSection() {
     }
 
     if (data) {
-      setPendingRequests(data.map(request => ({
+      const typedData = data as PendingRequestResponse[];
+      setPendingRequests(typedData.map(request => ({
         id: request.id,
-        user: request.user as Friend,
+        user: request.user,
         status: request.status as 'pending' | 'accepted' | 'rejected'
       })));
     }
