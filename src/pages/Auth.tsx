@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -7,31 +8,74 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
+import { AlertCircle } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const Auth = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [username, setUsername] = useState("");
   const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
   const { toast } = useToast();
   const navigate = useNavigate();
+
+  const checkUsername = async (username: string) => {
+    try {
+      const { data, error } = await supabase.rpc('check_username_available', {
+        username: username.toLowerCase()
+      });
+      
+      if (error) throw error;
+      return data;
+    } catch (error: any) {
+      console.error('Error checking username:', error.message);
+      return false;
+    }
+  };
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setErrorMsg("");
     
     try {
-      const { error } = await supabase.auth.signUp({
+      // Username validation
+      if (username.length < 3) {
+        throw new Error("Username must be at least 3 characters long");
+      }
+      
+      if (!/^[a-zA-Z0-9_]+$/.test(username)) {
+        throw new Error("Username can only contain letters, numbers, and underscores");
+      }
+
+      const isAvailable = await checkUsername(username);
+      if (!isAvailable) {
+        throw new Error("Username is already taken");
+      }
+
+      // Sign up with Supabase
+      const { error: signUpError } = await supabase.auth.signUp({
         email,
         password,
       });
       
-      if (error) throw error;
+      if (signUpError) throw signUpError;
+
+      // Update profile with username
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ username: username.toLowerCase() })
+        .eq('id', (await supabase.auth.getUser()).data.user?.id);
+
+      if (updateError) throw updateError;
       
       toast({
         title: "Success!",
         description: "Check your email for the confirmation link.",
       });
     } catch (error: any) {
+      setErrorMsg(error.message);
       toast({
         title: "Error",
         description: error.message,
@@ -45,6 +89,7 @@ const Auth = () => {
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    setErrorMsg("");
     
     try {
       const { error } = await supabase.auth.signInWithPassword({
@@ -56,6 +101,7 @@ const Auth = () => {
       
       navigate("/");
     } catch (error: any) {
+      setErrorMsg(error.message);
       toast({
         title: "Error",
         description: error.message,
@@ -74,6 +120,13 @@ const Auth = () => {
             <TabsTrigger value="signin">Sign In</TabsTrigger>
             <TabsTrigger value="signup">Sign Up</TabsTrigger>
           </TabsList>
+          
+          {errorMsg && (
+            <Alert variant="destructive" className="mt-4">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{errorMsg}</AlertDescription>
+            </Alert>
+          )}
           
           <TabsContent value="signin">
             <form onSubmit={handleSignIn} className="space-y-4">
@@ -122,6 +175,21 @@ const Auth = () => {
               </div>
               
               <div className="space-y-2">
+                <Label htmlFor="signup-username">Username</Label>
+                <Input
+                  id="signup-username"
+                  type="text"
+                  placeholder="Choose a username"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  pattern="^[a-zA-Z0-9_]+$"
+                  title="Username can only contain letters, numbers, and underscores"
+                  required
+                  minLength={3}
+                />
+              </div>
+              
+              <div className="space-y-2">
                 <Label htmlFor="signup-password">Password</Label>
                 <Input
                   id="signup-password"
@@ -130,6 +198,7 @@ const Auth = () => {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
+                  minLength={6}
                 />
               </div>
               
