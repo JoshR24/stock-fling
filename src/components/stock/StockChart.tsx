@@ -21,8 +21,13 @@ export const StockChart = ({ stock, onTimeframeChange }: StockChartProps) => {
   }
 
   const getFilteredData = () => {
+    // Add logging to see what data we're working with
+    console.log('Timeframe:', timeframe);
+    console.log('Total data points:', stock.chartData.length);
+    
     // Ensure we have valid data with dates
     const validData = stock.chartData.filter(point => point.date && point.value);
+    console.log('Valid data points:', validData.length);
     
     if (validData.length === 0) return stock.chartData;
 
@@ -33,18 +38,26 @@ export const StockChart = ({ stock, onTimeframeChange }: StockChartProps) => {
       return dateA.getTime() - dateB.getTime();
     });
 
+    let result;
     switch (timeframe) {
       case '1D':
-        return sortedData.slice(-1);
+        result = sortedData.slice(-1);
+        break;
       case '5D':
-        return sortedData.slice(-5);
+        result = sortedData.slice(-5);
+        break;
       case '30D':
-        return sortedData.slice(-30);
+        result = sortedData.slice(-30);
+        break;
       case '1Y':
-        return sortedData.slice(-365);
+        result = sortedData.slice(-365);
+        break;
       default:
-        return sortedData;
+        result = sortedData;
     }
+    
+    console.log('Filtered data points for', timeframe, ':', result.length);
+    return result;
   };
 
   const calculatePerformance = () => {
@@ -57,6 +70,7 @@ export const StockChart = ({ stock, onTimeframeChange }: StockChartProps) => {
   };
 
   const handleTimeframeChange = (newTimeframe: '1D' | '5D' | '30D' | '1Y') => {
+    console.log('Changing timeframe to:', newTimeframe);
     setTimeframe(newTimeframe);
     onTimeframeChange(newTimeframe);
   };
