@@ -9,9 +9,9 @@ import { Users, UserPlus, Check, X } from "lucide-react";
 
 interface Friend {
   id: string;
-  username: string;
-  full_name: string;
-  avatar_url: string;
+  username: string | null;
+  full_name: string | null;
+  avatar_url: string | null;
 }
 
 interface FriendRequest {
@@ -58,7 +58,9 @@ export default function FriendsSection() {
       return;
     }
 
-    setFriends(data.map(f => f.friend));
+    if (data) {
+      setFriends(data.map(f => f.friend as Friend));
+    }
   };
 
   const loadPendingRequests = async () => {
@@ -89,7 +91,13 @@ export default function FriendsSection() {
       return;
     }
 
-    setPendingRequests(data);
+    if (data) {
+      setPendingRequests(data.map(request => ({
+        id: request.id,
+        user: request.user as Friend,
+        status: request.status as 'pending' | 'accepted' | 'rejected'
+      })));
+    }
   };
 
   const sendFriendRequest = async () => {
@@ -110,7 +118,7 @@ export default function FriendsSection() {
       .from('profiles')
       .select('id')
       .eq('username', friendUsername)
-      .single();
+      .maybeSingle();
 
     if (userError || !foundUser) {
       toast({

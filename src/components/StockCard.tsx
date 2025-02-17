@@ -65,7 +65,7 @@ export const StockCard = ({ stock, onSwipe }: StockCardProps) => {
           throw error;
         }
 
-        return data?.data as StockData;
+        return data?.data as StockData | null;
       } catch (error) {
         console.error('Error fetching stock data:', error);
         toast({
