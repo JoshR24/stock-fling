@@ -14,6 +14,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 const Auth = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [username, setUsername] = useState("");
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
@@ -44,6 +45,11 @@ const Auth = () => {
     setErrorMsg("");
     
     try {
+      // Password confirmation check
+      if (password !== confirmPassword) {
+        throw new Error("Passwords do not match");
+      }
+
       // Username validation
       if (username.length < 3) {
         throw new Error("Username must be at least 3 characters long");
@@ -55,7 +61,7 @@ const Auth = () => {
 
       const isAvailable = await checkUsername(username);
       if (!isAvailable) {
-        throw new Error("Username is already taken");
+        throw new Error("This username is already taken. Please choose another one.");
       }
 
       // Sign up with Supabase
@@ -201,6 +207,19 @@ const Auth = () => {
                   placeholder="Choose a password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  required
+                  minLength={6}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="signup-confirm-password">Confirm Password</Label>
+                <Input
+                  id="signup-confirm-password"
+                  type="password"
+                  placeholder="Confirm your password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
                   required
                   minLength={6}
                 />
