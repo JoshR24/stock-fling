@@ -7,7 +7,7 @@ export interface Stock {
   name: string;
   price: number;
   change: number;
-  chartData: { value: number; date?: string }[];
+  chartData: { value: number; date: string }[];
   description: string;
   error?: string;
   news: {
@@ -74,7 +74,8 @@ export const generateStockBatch = async (): Promise<Stock[]> => {
         description: stock.data.description || `Description for ${stock.symbol}`,
         news: stock.data.news || [],
         chartData: (stock.data.chartData || []).map((point: any) => ({
-          value: parseFloat(point.value)
+          value: parseFloat(point.value),
+          date: point.date
         }))
       }))
       .sort(() => Math.random() - 0.5); // Shuffle the stocks
