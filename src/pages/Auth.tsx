@@ -22,12 +22,16 @@ const Auth = () => {
 
   const checkUsername = async (username: string) => {
     try {
-      const { data, error } = await supabase.rpc('check_username_available', {
-        username: username.toLowerCase()
-      });
+      // Use a direct query instead of RPC to check username availability
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('username')
+        .eq('username', username.toLowerCase())
+        .maybeSingle();
       
       if (error) throw error;
-      return data;
+      // Return true if no username was found (meaning it's available)
+      return !data;
     } catch (error: any) {
       console.error('Error checking username:', error.message);
       return false;
