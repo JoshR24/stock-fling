@@ -25,6 +25,7 @@ interface StockData {
     date: string;
     summary?: string;
   }[];
+  description: string;
 }
 
 const Explore = () => {
@@ -45,14 +46,17 @@ const Explore = () => {
         if (error) throw error;
 
         return data.map(item => {
-          const stockInfo = item.data as any;
+          const stockInfo = item.data as StockData;
           return {
+            id: item.symbol,
             symbol: item.symbol,
             name: stockInfo.name || 'Unknown',
             price: stockInfo.price || 0,
             change: stockInfo.change || 0,
+            description: stockInfo.description || `No description available for ${item.symbol}`,
+            chartData: [], // Initialize with empty array if not available
             news: stockInfo.news || []
-          } as StockData;
+          } as Stock;
         });
       } catch (error) {
         console.error('Error fetching stocks:', error);
@@ -135,15 +139,13 @@ const Explore = () => {
 
   // Find the full stock data for the selected stock
   const selectedStockData = stockData?.find(s => s.symbol === selectedStock);
-  const stockForDetail = selectedStockData ? {
-    id: selectedStockData.symbol,
-    symbol: selectedStockData.symbol,
-    name: selectedStockData.name,
-    price: selectedStockData.price,
-    change: selectedStockData.change,
-    chartData: [], // You'll need to fetch this data
-    news: selectedStockData.news || []
-  } as Stock : null;
+  const stockForDetail = selectedStockData 
+    ? { 
+        ...selectedStockData,
+        description: selectedStockData.description || `No description available for ${selectedStockData.symbol}`,
+        chartData: selectedStockData.chartData || []
+      } as Stock 
+    : null;
 
   return (
     <div className="h-full">
