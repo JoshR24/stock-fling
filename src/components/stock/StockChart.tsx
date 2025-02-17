@@ -21,22 +21,37 @@ export const StockChart = ({ stock, onTimeframeChange }: StockChartProps) => {
   }
 
   const getFilteredData = () => {
-    const totalDataPoints = stock.chartData.length;
+    // Ensure we have valid data with dates
+    const validData = stock.chartData.filter(point => point.date && point.value);
     
+    if (validData.length === 0) return stock.chartData;
+
+    // Sort data by date to ensure correct order
+    const sortedData = [...validData].sort((a, b) => {
+      const dateA = new Date(a.date || '');
+      const dateB = new Date(b.date || '');
+      return dateA.getTime() - dateB.getTime();
+    });
+
     switch (timeframe) {
       case '1D':
-        return stock.chartData.slice(-1);
+        return sortedData.slice(-1);
       case '5D':
-        return stock.chartData.slice(-5);
+        return sortedData.slice(-5);
       case '30D':
-        return stock.chartData.slice(-30);
+        return sortedData.slice(-30);
       case '1Y':
-        // For 1Y, we'll use all available data points or last 365 points if we have more
-        return totalDataPoints > 365 
-          ? stock.chartData.slice(-365) 
-          : stock.chartData;
+        // Get the date from one year ago
+        const oneYearAgo = new Date();
+        oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+        
+        // Filter data for the last year
+        return sortedData.filter(point => {
+          const pointDate = new Date(point.date || '');
+          return pointDate >= oneYearAgo;
+        });
       default:
-        return stock.chartData;
+        return sortedData;
     }
   };
 
