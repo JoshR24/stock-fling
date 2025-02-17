@@ -1,3 +1,4 @@
+
 import { Stock } from "@/lib/mockStocks";
 import { Area, AreaChart, ResponsiveContainer, Tooltip, YAxis } from "recharts";
 import { useState } from "react";
@@ -20,8 +21,6 @@ export const StockChart = ({ stock, onTimeframeChange }: StockChartProps) => {
   }
 
   const getFilteredData = () => {
-    console.log('Chart data:', stock.chartData);
-    
     // Ensure we have valid data with dates
     const validData = stock.chartData.filter(point => point.date && point.value);
     
@@ -42,15 +41,7 @@ export const StockChart = ({ stock, onTimeframeChange }: StockChartProps) => {
       case '30D':
         return sortedData.slice(-30);
       case '1Y':
-        // Get the date from one year ago
-        const oneYearAgo = new Date();
-        oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
-        
-        // Filter data for the last year
-        return sortedData.filter(point => {
-          const pointDate = new Date(point.date || '');
-          return pointDate >= oneYearAgo;
-        });
+        return sortedData.slice(-365);
       default:
         return sortedData;
     }
