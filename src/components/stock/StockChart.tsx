@@ -1,4 +1,3 @@
-
 import { Stock } from "@/lib/mockStocks";
 import { Area, AreaChart, ResponsiveContainer, Tooltip, YAxis } from "recharts";
 import { useState } from "react";
@@ -21,6 +20,8 @@ export const StockChart = ({ stock, onTimeframeChange }: StockChartProps) => {
   }
 
   const getFilteredData = () => {
+    console.log('Chart data:', stock.chartData);
+    
     // Ensure we have valid data with dates
     const validData = stock.chartData.filter(point => point.date && point.value);
     
