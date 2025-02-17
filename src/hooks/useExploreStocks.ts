@@ -1,0 +1,94 @@
+
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { Stock } from "@/lib/mockStocks";
+import { useToast } from "@/hooks/use-toast";
+import { useEffect } from "react";
+
+interface StockData {
+  symbol: string;
+  name: string;
+  price: number;
+  change: number;
+  news?: {
+    id: string;
+    title: string;
+    url: string;
+    date: string;
+    summary: string;
+  }[];
+  description: string;
+}
+
+export const useExploreStocks = (selectedCategory: string | null) => {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const { data: stockData } = useQuery({
+    queryKey: ['exploreStocks', selectedCategory],
+    queryFn: async () => {
+      try {
+        const { data, error } = await supabase
+          .from('stock_data_cache')
+          .select('*')
+          .limit(5);
+
+        if (error) throw error;
+
+        return data.map(item => {
+          const stockInfo = item.data as unknown as StockData;
+          return {
+            id: item.symbol,
+            symbol: item.symbol,
+            name: stockInfo.name || 'Unknown',
+            price: stockInfo.price || 0,
+            change: stockInfo.change || 0,
+            description: stockInfo.description || `No description available for ${item.symbol}`,
+            chartData: [], // Initialize with empty array if not available
+            news: stockInfo.news?.map(n => ({
+              id: n.id,
+              title: n.title,
+              summary: n.summary,
+              date: n.date,
+              url: n.url
+            })) || []
+          } as Stock;
+        });
+      } catch (error) {
+        console.error('Error fetching stocks:', error);
+        toast({
+          title: "Error",
+          description: "Failed to fetch stocks. Please try again later.",
+          variant: "destructive",
+        });
+        return [];
+      }
+    },
+    refetchInterval: 60000 // Refetch every minute
+  });
+
+  // Set up real-time listener for stock updates
+  useEffect(() => {
+    const channel = supabase
+      .channel('stock-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'stock_data_cache'
+        },
+        (payload) => {
+          console.log('Received stock update:', payload);
+          queryClient.invalidateQueries({ queryKey: ['exploreStocks'] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
+
+  return { stockData };
+};
