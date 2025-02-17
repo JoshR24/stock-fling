@@ -1,3 +1,4 @@
+
 import { Stock } from "@/lib/mockStocks";
 import { Area, AreaChart, ResponsiveContainer, Tooltip, YAxis } from "recharts";
 import { useState } from "react";
@@ -20,6 +21,8 @@ export const StockChart = ({ stock, onTimeframeChange }: StockChartProps) => {
   }
 
   const getFilteredData = () => {
+    const totalDataPoints = stock.chartData.length;
+    
     switch (timeframe) {
       case '1D':
         return stock.chartData.slice(-1);
@@ -28,7 +31,10 @@ export const StockChart = ({ stock, onTimeframeChange }: StockChartProps) => {
       case '30D':
         return stock.chartData.slice(-30);
       case '1Y':
-        return stock.chartData;
+        // For 1Y, we'll use all available data points or last 365 points if we have more
+        return totalDataPoints > 365 
+          ? stock.chartData.slice(-365) 
+          : stock.chartData;
       default:
         return stock.chartData;
     }
