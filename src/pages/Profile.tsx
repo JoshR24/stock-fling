@@ -1,3 +1,4 @@
+
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
@@ -6,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import AccountSettings from "@/components/profile/AccountSettings";
 import PreferencesSettings from "@/components/profile/PreferencesSettings";
 import LegalSettings from "@/components/profile/LegalSettings";
+import FriendsSection from "@/components/profile/FriendsSection";
 import { Support } from "@/components/portfolio/Support";
 import { LogOut } from "lucide-react";
 
@@ -35,6 +37,8 @@ const Profile = () => {
         <Card className="p-4">
           <AccountSettings />
         </Card>
+        
+        <FriendsSection />
         
         <Card className="p-4">
           <PreferencesSettings />
