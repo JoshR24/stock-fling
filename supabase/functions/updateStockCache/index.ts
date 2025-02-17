@@ -87,13 +87,13 @@ serve(async (req) => {
           continue;
         }
 
-        // 2. Fetch historical data (30 days)
+        // 2. Fetch historical data (1 year)
         const toDate = new Date();
         const fromDate = new Date();
-        fromDate.setDate(fromDate.getDate() - 30);
+        fromDate.setFullYear(fromDate.getFullYear() - 1); // Changed to fetch 1 year of data
 
         const historicalResponse = await fetch(
-          `https://api.polygon.io/v2/aggs/ticker/${stock.symbol}/range/1/day/${fromDate.toISOString().split('T')[0]}/${toDate.toISOString().split('T')[0]}?adjusted=true&apiKey=${POLYGON_API_KEY}`
+          `https://api.polygon.io/v2/aggs/ticker/${stock.symbol}/range/1/day/${fromDate.toISOString().split('T')[0]}/${toDate.toISOString().split('T')[0]}?adjusted=true&limit=365&apiKey=${POLYGON_API_KEY}`
         );
 
         let chartData = [];
