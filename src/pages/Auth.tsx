@@ -16,19 +16,16 @@ const Auth = () => {
   const { toast } = useToast();
 
   useEffect(() => {
-    // Check if we're on the reset password flow
     const handlePasswordReset = async () => {
-      const hash = window.location.hash;
-      const query = new URLSearchParams(window.location.search);
-      
-      if (query.get('reset') === 'true' && hash) {
-        try {
-          // The hash contains the access_token
-          const accessToken = hash.substring(1); // Remove the # character
-          const { error } = await supabase.auth.verifyOtp({
-            token_hash: accessToken,
-            type: 'recovery'
-          });
+      try {
+        // Get the URL hash
+        const access_token = window.location.hash.replace('#', '');
+        const query = new URLSearchParams(window.location.search);
+        
+        // Check if this is a password reset flow
+        if (query.get('type') === 'recovery' && access_token) {
+          // Use updateUser instead of verifyOtp
+          const { error } = await supabase.auth.updateUser({ password: 'new-password' });
 
           if (error) throw error;
 
@@ -36,14 +33,15 @@ const Auth = () => {
             title: "Success",
             description: "Your password has been reset. Please sign in with your new password.",
           });
-        } catch (error: any) {
-          console.error('Password reset error:', error);
-          toast({
-            title: "Error",
-            description: error.message,
-            variant: "destructive",
-          });
         }
+      } catch (error: any) {
+        console.error('Password reset error:', error);
+        setErrorMsg(error.message);
+        toast({
+          title: "Error",
+          description: error.message,
+          variant: "destructive",
+        });
       }
     };
 

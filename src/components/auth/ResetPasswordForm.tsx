@@ -16,9 +16,8 @@ export const ResetPasswordForm = ({ onBack }: { onBack: () => void }) => {
     setLoading(true);
 
     try {
-      // Ensure we always use the full URL with protocol
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `http://localhost:8080/auth?reset=true`,
+        redirectTo: `http://localhost:8080/auth?type=recovery`,
       });
 
       if (error) throw error;
