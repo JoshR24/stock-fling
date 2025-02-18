@@ -22,6 +22,25 @@ interface StockDataCache {
   last_updated: string;
 }
 
+const isMarketOpen = (): boolean => {
+  const now = new Date();
+  const day = now.getDay();
+  const hours = now.getHours();
+  const minutes = now.getMinutes();
+  
+  // Convert to ET (assuming server is in UTC)
+  const etHours = (hours - 4 + 24) % 24; // Simple UTC to ET conversion (UTC-4)
+  const currentTimeInMinutes = etHours * 60 + minutes;
+  
+  // Market hours: Monday (1) to Friday (5), 9:30 AM to 4:00 PM ET
+  const marketOpenInMinutes = 9 * 60 + 30;  // 9:30 AM
+  const marketCloseInMinutes = 16 * 60;     // 4:00 PM
+  
+  return day >= 1 && day <= 5 && // Monday to Friday
+         currentTimeInMinutes >= marketOpenInMinutes &&
+         currentTimeInMinutes < marketCloseInMinutes;
+};
+
 export const useStocks = () => {
   const [stocks, setStocks] = useState<Stock[]>([]);
   const { toast } = useToast();
@@ -42,7 +61,42 @@ export const useStocks = () => {
       const positionSymbols = new Set(positions?.map(position => position.symbol) || []);
       console.log('Position symbols to exclude:', positionSymbols);
 
-      // Fetch available stocks from cache
+      // Only fetch stock data during market hours
+      if (!isMarketOpen()) {
+        console.log('Market is closed. Only fetching static data and news.');
+        const { data: availableStocks, error } = await supabase
+          .from('stock_data_cache')
+          .select('symbol, data, last_updated')
+          .not('symbol', 'in', `(${Array.from(positionSymbols).map(s => `'${s}'`).join(',')})`)
+          .order('last_updated', { ascending: false });
+
+        if (error) {
+          console.error('Error fetching stocks:', error);
+          throw error;
+        }
+
+        const processedStocks = (availableStocks as unknown as StockDataCache[] || []).map(stock => ({
+          id: stock.symbol,
+          symbol: stock.symbol,
+          name: stock.data.name,
+          price: stock.data.price,
+          change: stock.data.change,
+          description: stock.data.description,
+          news: stock.data.news,
+          chartData: stock.data.chartData?.map(point => ({
+            value: point.value,
+            date: point.date
+          })) || []
+        }));
+
+        setStocks(prev => {
+          const existingSymbols = new Set(prev.map(s => s.symbol));
+          return [...prev, ...processedStocks.filter(s => !existingSymbols.has(s.symbol))];
+        });
+        return;
+      }
+
+      // During market hours - fetch all data as before
       const { data: availableStocks, error } = await supabase
         .from('stock_data_cache')
         .select('symbol, data, last_updated')
@@ -144,6 +198,7 @@ export const useStocks = () => {
   return {
     stocks,
     loadStocks,
-    handleSwipe
+    handleSwipe,
+    isMarketOpen: isMarketOpen()
   };
 };

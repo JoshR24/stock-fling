@@ -16,7 +16,7 @@ interface IndexProps {
 
 const Index = ({ showPortfolio: initialShowPortfolio = false }: IndexProps) => {
   const [showPortfolio, setShowPortfolio] = useState(initialShowPortfolio);
-  const { stocks, loadStocks, handleSwipe } = useStocks();
+  const { stocks, loadStocks, handleSwipe, isMarketOpen } = useStocks();
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -43,7 +43,7 @@ const Index = ({ showPortfolio: initialShowPortfolio = false }: IndexProps) => {
     checkAuth();
   }, [navigate, toast]);
 
-  // Fetch positions data using React Query
+  // Fetch positions data using React Query with market hours awareness
   const { data: positionsData } = useQuery({
     queryKey: ['positions'],
     queryFn: async () => {
@@ -65,12 +65,18 @@ const Index = ({ showPortfolio: initialShowPortfolio = false }: IndexProps) => {
       console.log('Fetched positions:', data);
       return data || [];
     },
+    refetchInterval: isMarketOpen ? 60000 : false, // Only poll during market hours
   });
 
   // Load initial stocks on mount or when positions change
   useEffect(() => {
     loadStocks();
-  }, [positionsData, showPortfolio]);
+    // Set up periodic refresh during market hours
+    if (isMarketOpen) {
+      const interval = setInterval(loadStocks, 60000); // Refresh every minute during market hours
+      return () => clearInterval(interval);
+    }
+  }, [positionsData, showPortfolio, isMarketOpen]);
 
   // Map positions symbols to stock objects
   const portfolioStocks = stocks.filter(stock => 
@@ -91,6 +97,11 @@ const Index = ({ showPortfolio: initialShowPortfolio = false }: IndexProps) => {
           <h1 className="text-2xl font-bold">
             {showPortfolio ? "Portfolio" : "Stockr"}
           </h1>
+          {!isMarketOpen && (
+            <span className="text-sm text-muted-foreground">
+              Market Closed
+            </span>
+          )}
         </div>
 
         <AnimatePresence mode="wait">
