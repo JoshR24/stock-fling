@@ -5,8 +5,6 @@ import { ScrollArea } from "./ui/scroll-area";
 import { supabase } from "@/integrations/supabase/client";
 import { PortfolioPositions } from "./positions/PortfolioPositions";
 import { AvailableCash } from "./portfolio/AvailableCash";
-import { TradeForm } from "./portfolio/TradeForm";
-import { StockList } from "./portfolio/StockList";
 import { PaperTradingDisclaimer } from "./portfolio/PaperTradingDisclaimer";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { LoadingPortfolio } from "./portfolio/LoadingPortfolio";
@@ -16,7 +14,6 @@ interface PortfolioProps {
 }
 
 export const Portfolio = ({ stocks }: PortfolioProps) => {
-  const [selectedStock, setSelectedStock] = useState<Stock | null>(null);
   const queryClient = useQueryClient();
 
   // Set up real-time listener for stock price updates
@@ -59,17 +56,9 @@ export const Portfolio = ({ stocks }: PortfolioProps) => {
       if (error) throw error;
       return data;
     },
-    staleTime: 30000, // Data stays fresh for 30 seconds
-    gcTime: 5 * 60 * 1000, // Cache data for 5 minutes
+    staleTime: 30000,
+    gcTime: 5 * 60 * 1000,
   });
-
-  const handleStockSelect = (stock: Stock) => {
-    setSelectedStock(stock);
-  };
-
-  const handleTradeComplete = () => {
-    setSelectedStock(null);
-  };
 
   if (stocks.length === 0 || isBalanceLoading) {
     return (
@@ -86,18 +75,6 @@ export const Portfolio = ({ stocks }: PortfolioProps) => {
           <PaperTradingDisclaimer />
           <AvailableCash balance={balanceData?.balance || 0} />
           <PortfolioPositions stocks={stocks} />
-          
-          {selectedStock && (
-            <TradeForm 
-              selectedStock={selectedStock}
-              onTrade={handleTradeComplete}
-            />
-          )}
-
-          <StockList 
-            stocks={stocks}
-            onSelectStock={handleStockSelect}
-          />
         </div>
       </ScrollArea>
     </div>
