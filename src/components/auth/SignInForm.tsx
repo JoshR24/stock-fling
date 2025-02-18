@@ -7,7 +7,11 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 
-export const SignInForm = () => {
+export const SignInForm = ({ 
+  onForgotPassword 
+}: { 
+  onForgotPassword: () => void 
+}) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -70,7 +74,16 @@ export const SignInForm = () => {
       </div>
       
       <div className="space-y-2">
-        <Label htmlFor="signin-password">Password</Label>
+        <div className="flex justify-between items-center">
+          <Label htmlFor="signin-password">Password</Label>
+          <button
+            type="button"
+            onClick={onForgotPassword}
+            className="text-sm text-primary hover:underline"
+          >
+            Forgot password?
+          </button>
+        </div>
         <Input
           id="signin-password"
           type="password"
