@@ -5,14 +5,14 @@ import { useEffect } from "react";
 import { PortfolioData } from "./types";
 
 const isMarketOpen = (): boolean => {
+  // Get current time in New York (ET)
   const now = new Date();
-  const day = now.getDay();
-  const hours = now.getHours();
-  const minutes = now.getMinutes();
+  const nyTime = new Date(now.toLocaleString("en-US", { timeZone: "America/New_York" }));
   
-  // Convert to ET (assuming server is in UTC)
-  const etHours = (hours - 4 + 24) % 24; // Simple UTC to ET conversion (UTC-4)
-  const currentTimeInMinutes = etHours * 60 + minutes;
+  const day = nyTime.getDay();
+  const hours = nyTime.getHours();
+  const minutes = nyTime.getMinutes();
+  const currentTimeInMinutes = hours * 60 + minutes;
   
   // Market hours: Monday (1) to Friday (5), 9:30 AM to 4:00 PM ET
   const marketOpenInMinutes = 9 * 60 + 30;  // 9:30 AM

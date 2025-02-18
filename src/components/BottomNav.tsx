@@ -41,9 +41,9 @@ const BottomNav = () => {
 
       // Calculate total portfolio value
       const totalValue = positions.reduce((sum, position) => {
-        const stockPrice = stockPrices.find(s => s.symbol === position.symbol);
-        if (!stockPrice) return sum;
-        return sum + (position.quantity * stockPrice.data.price);
+        const stockData = stockPrices.find(s => s.symbol === position.symbol)?.data as any;
+        if (!stockData?.price) return sum;
+        return sum + (position.quantity * stockData.price);
       }, 0);
 
       return { totalValue };
