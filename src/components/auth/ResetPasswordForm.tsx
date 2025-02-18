@@ -16,8 +16,9 @@ export const ResetPasswordForm = ({ onBack }: { onBack: () => void }) => {
     setLoading(true);
 
     try {
+      // Update the redirectTo URL to use port 8080
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/auth?reset=true`,
+        redirectTo: 'http://localhost:8080/auth?reset=true',
       });
 
       if (error) throw error;
@@ -30,6 +31,7 @@ export const ResetPasswordForm = ({ onBack }: { onBack: () => void }) => {
       // Go back to sign in form
       onBack();
     } catch (error: any) {
+      console.error('Reset password error:', error);
       toast({
         title: "Error",
         description: error.message,
