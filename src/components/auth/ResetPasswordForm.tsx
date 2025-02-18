@@ -13,21 +13,22 @@ export const ResetPasswordForm = ({ onBack }: { onBack: () => void }) => {
 
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!email) return;
+    
     setLoading(true);
 
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `http://localhost:8080/auth?type=recovery`,
+        redirectTo: window.location.origin + '/auth?type=recovery'
       });
 
       if (error) throw error;
 
       toast({
         title: "Check your email",
-        description: "We've sent you a password reset link. Please check your email to reset your password.",
+        description: "Password reset instructions have been sent to your email.",
       });
       
-      // Go back to sign in form
       onBack();
     } catch (error: any) {
       console.error('Reset password error:', error);

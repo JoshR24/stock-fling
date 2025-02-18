@@ -17,36 +17,41 @@ const Auth = () => {
 
   useEffect(() => {
     const handlePasswordReset = async () => {
+      const query = new URLSearchParams(window.location.search);
+      const type = query.get('type');
+      
+      // Only proceed if this is actually a recovery attempt
+      if (type !== 'recovery') return;
+
       try {
-        // Get the URL hash
         const access_token = window.location.hash.replace('#', '');
-        const query = new URLSearchParams(window.location.search);
         
-        // Check if this is a password reset flow
-        if (query.get('type') === 'recovery' && access_token) {
-          // Use updateUser instead of verifyOtp
-          const { error } = await supabase.auth.updateUser({ password: 'new-password' });
-
-          if (error) throw error;
-
-          toast({
-            title: "Success",
-            description: "Your password has been reset. Please sign in with your new password.",
-          });
+        if (!access_token) {
+          throw new Error('No access token found');
         }
+
+        const { error } = await supabase.auth.updateUser({ 
+          password: 'new-password' 
+        });
+
+        if (error) throw error;
+
+        // Clear URL parameters after successful reset
+        window.history.replaceState({}, document.title, window.location.pathname);
+
+        toast({
+          title: "Success",
+          description: "Password reset successful. Please sign in with your new password.",
+        });
       } catch (error: any) {
         console.error('Password reset error:', error);
         setErrorMsg(error.message);
-        toast({
-          title: "Error",
-          description: error.message,
-          variant: "destructive",
-        });
       }
     };
 
+    // Only run once on mount
     handlePasswordReset();
-  }, [toast]);
+  }, []); // Remove toast from dependencies to reduce reruns
 
   return (
     <div className="min-h-screen bg-background p-4 flex items-center justify-center">
