@@ -28,27 +28,26 @@ export const useStocks = () => {
 
   const loadStocks = async () => {
     try {
-      // Get user's positions first
+      // Get user's positions to exclude them
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         throw new Error('User not authenticated');
       }
 
-      // Get positions in a single query
       const { data: positions } = await supabase
         .from('paper_trading_positions')
         .select('symbol')
         .eq('user_id', user.id);
 
       const positionSymbols = new Set(positions?.map(position => position.symbol) || []);
+      console.log('Position symbols to exclude:', positionSymbols);
 
-      // Fetch available stocks efficiently
+      // Fetch available stocks from cache
       const { data: availableStocks, error } = await supabase
         .from('stock_data_cache')
         .select('symbol, data, last_updated')
         .not('symbol', 'in', `(${Array.from(positionSymbols).map(s => `'${s}'`).join(',')})`)
-        .order('last_updated', { ascending: false })
-        .limit(10); // Limit the number of stocks fetched
+        .order('last_updated', { ascending: false });
 
       if (error) {
         console.error('Error fetching stocks:', error);
@@ -62,8 +61,11 @@ export const useStocks = () => {
         price: stock.data.price,
         change: stock.data.change,
         description: stock.data.description,
-        news: stock.data.news?.slice(0, 5), // Limit news items
-        chartData: stock.data.chartData?.slice(-30) || [] // Only keep last 30 data points
+        news: stock.data.news,
+        chartData: stock.data.chartData?.map(point => ({
+          value: point.value,
+          date: point.date
+        })) || []
       }));
 
       setStocks(prev => {
@@ -85,27 +87,51 @@ export const useStocks = () => {
     setStocks((prev) => {
       const [current, ...rest] = prev;
       if (direction === "right" && current) {
-        // Save to portfolio
-        supabase
-          .from('portfolios')
-          .insert({ 
-            symbol: current.symbol,
-            user_id: supabase.auth.getUser().then(({ data }) => data.user?.id)
-          })
-          .then(({ error }) => {
+        const saveToPortfolio = async () => {
+          try {
+            const { data: { user } } = await supabase.auth.getUser();
+            
+            if (!user) {
+              toast({
+                title: "Error",
+                description: "You must be logged in to save to portfolio.",
+                variant: "destructive",
+              });
+              return;
+            }
+
+            const { error } = await supabase
+              .from('portfolios')
+              .insert({ 
+                symbol: current.symbol,
+                user_id: user.id
+              });
+
             if (error) {
+              console.error('Error saving to portfolio:', error);
               toast({
                 title: "Error",
                 description: "Failed to save stock to portfolio. Please try again.",
                 variant: "destructive",
               });
-            } else {
-              toast({
-                title: "Added to Portfolio",
-                description: `${current.symbol} has been added to your portfolio.`,
-              });
+              return;
             }
-          });
+
+            toast({
+              title: "Added to Portfolio",
+              description: `${current.symbol} has been added to your portfolio.`,
+            });
+          } catch (error) {
+            console.error('Error in saveToPortfolio:', error);
+            toast({
+              title: "Error",
+              description: "Failed to save stock to portfolio. Please try again.",
+              variant: "destructive",
+            });
+          }
+        };
+
+        saveToPortfolio();
       }
       return rest;
     });
