@@ -17,6 +17,7 @@ const Auth = () => {
 
   useEffect(() => {
     const handlePasswordReset = async () => {
+      // Get URL parameters only once at component mount
       const query = new URLSearchParams(window.location.search);
       const type = query.get('type');
       
@@ -36,8 +37,11 @@ const Auth = () => {
 
         if (error) throw error;
 
-        // Clear URL parameters after successful reset
-        window.history.replaceState({}, document.title, window.location.pathname);
+        // Clear URL parameters after successful reset - do this only once
+        const cleanUrl = window.location.pathname;
+        if (window.location.href !== cleanUrl) {
+          window.history.replaceState({}, document.title, cleanUrl);
+        }
 
         toast({
           title: "Success",
@@ -49,9 +53,9 @@ const Auth = () => {
       }
     };
 
-    // Only run once on mount
+    // Run once on mount
     handlePasswordReset();
-  }, []); // Remove toast from dependencies to reduce reruns
+  }, []); // Empty dependency array - only run once on mount
 
   return (
     <div className="min-h-screen bg-background p-4 flex items-center justify-center">
