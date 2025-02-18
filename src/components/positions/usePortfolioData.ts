@@ -1,9 +1,27 @@
-
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useEffect } from "react";
 import { PortfolioData } from "./types";
+
+const isMarketOpen = (): boolean => {
+  const now = new Date();
+  const day = now.getDay();
+  const hours = now.getHours();
+  const minutes = now.getMinutes();
+  
+  // Convert to ET (assuming server is in UTC)
+  const etHours = (hours - 4 + 24) % 24; // Simple UTC to ET conversion (UTC-4)
+  const currentTimeInMinutes = etHours * 60 + minutes;
+  
+  // Market hours: Monday (1) to Friday (5), 9:30 AM to 4:00 PM ET
+  const marketOpenInMinutes = 9 * 60 + 30;  // 9:30 AM
+  const marketCloseInMinutes = 16 * 60;     // 4:00 PM
+  
+  return day >= 1 && day <= 5 && // Monday to Friday
+         currentTimeInMinutes >= marketOpenInMinutes &&
+         currentTimeInMinutes < marketCloseInMinutes;
+};
 
 export const usePortfolioData = () => {
   const { toast } = useToast();
@@ -56,8 +74,9 @@ export const usePortfolioData = () => {
     },
     staleTime: 30000, // Data stays fresh for 30 seconds
     gcTime: 5 * 60 * 1000, // Cache data for 5 minutes
-    refetchOnMount: false, // Don't refetch on mount if data is fresh
-    refetchOnWindowFocus: false, // Don't refetch when window regains focus
+    refetchInterval: isMarketOpen() ? 60000 : false, // Only poll during market hours
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
   });
 
   useEffect(() => {

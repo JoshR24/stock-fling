@@ -1,4 +1,3 @@
-
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Stock } from "@/lib/mockStocks";
@@ -19,6 +18,25 @@ interface StockData {
   }[];
   description: string;
 }
+
+const isMarketOpen = (): boolean => {
+  const now = new Date();
+  const day = now.getDay();
+  const hours = now.getHours();
+  const minutes = now.getMinutes();
+  
+  // Convert to ET (assuming server is in UTC)
+  const etHours = (hours - 4 + 24) % 24; // Simple UTC to ET conversion (UTC-4)
+  const currentTimeInMinutes = etHours * 60 + minutes;
+  
+  // Market hours: Monday (1) to Friday (5), 9:30 AM to 4:00 PM ET
+  const marketOpenInMinutes = 9 * 60 + 30;  // 9:30 AM
+  const marketCloseInMinutes = 16 * 60;     // 4:00 PM
+  
+  return day >= 1 && day <= 5 && // Monday to Friday
+         currentTimeInMinutes >= marketOpenInMinutes &&
+         currentTimeInMinutes < marketCloseInMinutes;
+};
 
 export const useExploreStocks = (selectedCategory: string | null) => {
   const { toast } = useToast();
@@ -64,7 +82,7 @@ export const useExploreStocks = (selectedCategory: string | null) => {
         return [];
       }
     },
-    refetchInterval: 60000 // Refetch every minute
+    refetchInterval: isMarketOpen() ? 60000 : false // Only poll during market hours
   });
 
   // Set up real-time listener for stock updates

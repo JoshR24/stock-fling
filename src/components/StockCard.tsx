@@ -1,4 +1,3 @@
-
 import { Stock } from "@/lib/mockStocks";
 import { motion, useMotionValue, useTransform } from "framer-motion";
 import { Card } from "./ui/card";
@@ -48,6 +47,25 @@ export const StockCard = ({ stock, onSwipe }: StockCardProps) => {
     [0, 0.15, 0.3]
   );
 
+  const isMarketOpen = (): boolean => {
+    const now = new Date();
+    const day = now.getDay();
+    const hours = now.getHours();
+    const minutes = now.getMinutes();
+    
+    // Convert to ET (assuming server is in UTC)
+    const etHours = (hours - 4 + 24) % 24; // Simple UTC to ET conversion (UTC-4)
+    const currentTimeInMinutes = etHours * 60 + minutes;
+    
+    // Market hours: Monday (1) to Friday (5), 9:30 AM to 4:00 PM ET
+    const marketOpenInMinutes = 9 * 60 + 30;  // 9:30 AM
+    const marketCloseInMinutes = 16 * 60;     // 4:00 PM
+    
+    return day >= 1 && day <= 5 && // Monday to Friday
+           currentTimeInMinutes >= marketOpenInMinutes &&
+           currentTimeInMinutes < marketCloseInMinutes;
+  };
+
   // Fetch real-time stock data
   const { data: stockData } = useQuery({
     queryKey: ['stockData', stock.symbol],
@@ -81,7 +99,7 @@ export const StockCard = ({ stock, onSwipe }: StockCardProps) => {
         return null;
       }
     },
-    refetchInterval: 60000, // Refetch every minute
+    refetchInterval: isMarketOpen() ? 60000 : false, // Only poll during market hours
   });
 
   // Update stock data with real-time values or fallback to cached data
