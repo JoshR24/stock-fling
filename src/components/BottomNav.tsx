@@ -1,10 +1,57 @@
+
 import { Link, useLocation } from "react-router-dom";
-import { Grid, Search, Briefcase, User } from "lucide-react";
+import { Grid, Search, User } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+
+const formatPortfolioValue = (value: number): string => {
+  if (value >= 1_000_000) {
+    return `$${(value / 1_000_000).toFixed(1)}M`;
+  }
+  if (value >= 1000) {
+    return `$${(value / 1000).toFixed(1)}k`;
+  }
+  return `$${value.toFixed(0)}`;
+};
 
 const BottomNav = () => {
   const location = useLocation();
   
+  const { data: portfolioData } = useQuery({
+    queryKey: ['portfolio-value'],
+    queryFn: async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return { totalValue: 0 };
+
+      // Get positions
+      const { data: positions, error: positionsError } = await supabase
+        .from('paper_trading_positions')
+        .select('symbol, quantity, average_price')
+        .eq('user_id', user.id);
+
+      if (positionsError) throw positionsError;
+
+      // Get current stock prices
+      const { data: stockPrices, error: pricesError } = await supabase
+        .from('stock_data_cache')
+        .select('symbol, data');
+
+      if (pricesError) throw pricesError;
+
+      // Calculate total portfolio value
+      const totalValue = positions.reduce((sum, position) => {
+        const stockPrice = stockPrices.find(s => s.symbol === position.symbol);
+        if (!stockPrice) return sum;
+        return sum + (position.quantity * stockPrice.data.price);
+      }, 0);
+
+      return { totalValue };
+    },
+    staleTime: 30000, // Refetch every 30 seconds
+    gcTime: 5 * 60 * 1000,
+  });
+
   const isActive = (path: string) => location.pathname === path;
 
   return (
@@ -38,7 +85,9 @@ const BottomNav = () => {
               isActive("/portfolio") ? "text-primary" : "text-muted-foreground"
             )}
           >
-            <Briefcase className="h-5 w-5 mb-1" />
+            <span className="text-base font-semibold mb-1">
+              {formatPortfolioValue(portfolioData?.totalValue || 0)}
+            </span>
             <span>Portfolio</span>
           </Link>
           <Link
