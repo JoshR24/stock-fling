@@ -52,13 +52,12 @@ export const SignUpForm = () => {
         throw new Error("This username is already taken. Please choose another one.");
       }
 
-      // First sign up the user and wait for the response
       const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
         options: {
           data: {
-            username: username.toLowerCase() // Store username in user metadata
+            username: username.toLowerCase()
           }
         }
       });
@@ -66,13 +65,17 @@ export const SignUpForm = () => {
       if (signUpError) throw signUpError;
       if (!signUpData.user) throw new Error("Failed to create user account");
 
-      // Update profile with username - this is now handled by the database trigger
-      // since we included the username in the user metadata
-      
       toast({
-        title: "Success!",
-        description: "Check your email for the confirmation link.",
+        title: "Check your email",
+        description: "We've sent you a confirmation link. Please check your email to verify your account before signing in.",
       });
+      
+      // Clear the form
+      setEmail("");
+      setPassword("");
+      setConfirmPassword("");
+      setUsername("");
+      
     } catch (error: any) {
       toast({
         title: "Error",

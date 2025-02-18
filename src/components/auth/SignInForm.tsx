@@ -24,7 +24,18 @@ export const SignInForm = () => {
         password,
       });
       
-      if (error) throw error;
+      if (error) {
+        // Handle specific error for unconfirmed email
+        if (error.message.toLowerCase().includes('email not confirmed')) {
+          toast({
+            title: "Email not confirmed",
+            description: "Please check your email and click the confirmation link before signing in.",
+            variant: "destructive",
+          });
+          return;
+        }
+        throw error;
+      }
       
       if (data?.user) {
         toast({
