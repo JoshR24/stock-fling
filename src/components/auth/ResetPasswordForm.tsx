@@ -16,9 +16,13 @@ export const ResetPasswordForm = ({ onBack }: { onBack: () => void }) => {
     setLoading(true);
 
     try {
-      // Update the redirectTo URL to use port 8080
+      // Construct the base URL ensuring we use the correct port
+      const baseUrl = window.location.hostname === 'localhost' 
+        ? 'http://localhost:8080' 
+        : window.location.origin;
+      
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: 'http://localhost:8080/auth?reset=true',
+        redirectTo: `${baseUrl}/auth?reset=true`,
       });
 
       if (error) throw error;
