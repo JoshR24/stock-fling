@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertCircle } from "lucide-react";
@@ -7,10 +7,48 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { SignInForm } from "@/components/auth/SignInForm";
 import { SignUpForm } from "@/components/auth/SignUpForm";
 import { ResetPasswordForm } from "@/components/auth/ResetPasswordForm";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 const Auth = () => {
   const [errorMsg, setErrorMsg] = useState("");
   const [showResetPassword, setShowResetPassword] = useState(false);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    // Check if we're on the reset password flow
+    const handlePasswordReset = async () => {
+      const hash = window.location.hash;
+      const query = new URLSearchParams(window.location.search);
+      
+      if (query.get('reset') === 'true' && hash) {
+        try {
+          // The hash contains the access_token
+          const accessToken = hash.substring(1); // Remove the # character
+          const { error } = await supabase.auth.verifyOtp({
+            token_hash: accessToken,
+            type: 'recovery'
+          });
+
+          if (error) throw error;
+
+          toast({
+            title: "Success",
+            description: "Your password has been reset. Please sign in with your new password.",
+          });
+        } catch (error: any) {
+          console.error('Password reset error:', error);
+          toast({
+            title: "Error",
+            description: error.message,
+            variant: "destructive",
+          });
+        }
+      }
+    };
+
+    handlePasswordReset();
+  }, [toast]);
 
   return (
     <div className="min-h-screen bg-background p-4 flex items-center justify-center">
