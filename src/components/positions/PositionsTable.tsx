@@ -22,18 +22,18 @@ export const PositionsTable = ({ positions, stockPrices }: PositionsTableProps) 
   const queryClient = useQueryClient();
 
   const handleTrade = async (position: Position, stockPrice: StockPrice, type: 'buy' | 'sell') => {
-    if (!quantity || isNaN(Number(quantity))) {
+    if (!quantity || isNaN(Number(quantity)) || Number(quantity) <= 0) {
       toast({
-        title: "Invalid input",
-        description: "Please enter a valid quantity",
+        title: "Invalid quantity",
+        description: "Please enter a valid number of shares",
         variant: "destructive",
       });
       return;
     }
 
     try {
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      if (userError || !user) {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
         toast({
           title: "Authentication required",
           description: "Please sign in to trade",
@@ -57,7 +57,8 @@ export const PositionsTable = ({ positions, stockPrices }: PositionsTableProps) 
         return;
       }
 
-      const totalAmount = Number(quantity) * stockPrice.currentPrice;
+      const tradeQuantity = Number(quantity);
+      const totalAmount = tradeQuantity * stockPrice.currentPrice;
 
       if (type === 'buy' && totalAmount > balanceData.balance) {
         toast({
@@ -68,7 +69,7 @@ export const PositionsTable = ({ positions, stockPrices }: PositionsTableProps) 
         return;
       }
 
-      if (type === 'sell' && Number(quantity) > position.quantity) {
+      if (type === 'sell' && tradeQuantity > position.quantity) {
         toast({
           title: "Invalid sell order",
           description: "You don't have enough shares to sell",
@@ -84,7 +85,7 @@ export const PositionsTable = ({ positions, stockPrices }: PositionsTableProps) 
           user_id: user.id,
           symbol: position.symbol,
           transaction_type: type,
-          quantity: Number(quantity),
+          quantity: tradeQuantity,
           price: stockPrice.currentPrice,
           total_amount: totalAmount,
         });
@@ -93,30 +94,36 @@ export const PositionsTable = ({ positions, stockPrices }: PositionsTableProps) 
 
       // Update position
       const newQuantity = type === 'buy' 
-        ? position.quantity + Number(quantity)
-        : position.quantity - Number(quantity);
+        ? position.quantity + tradeQuantity
+        : position.quantity - tradeQuantity;
+
+      const newAveragePrice = type === 'buy'
+        ? ((position.quantity * position.average_price) + totalAmount) / newQuantity
+        : position.average_price;
 
       if (newQuantity === 0) {
-        await supabase
+        const { error: deleteError } = await supabase
           .from('paper_trading_positions')
           .delete()
           .eq('symbol', position.symbol)
           .eq('user_id', user.id);
+          
+        if (deleteError) throw deleteError;
       } else {
-        await supabase
+        const { error: updateError } = await supabase
           .from('paper_trading_positions')
-          .update({ 
+          .upsert({ 
+            user_id: user.id,
+            symbol: position.symbol,
             quantity: newQuantity,
-            average_price: type === 'buy'
-              ? ((position.quantity * position.average_price) + totalAmount) / newQuantity
-              : position.average_price,
-          })
-          .eq('symbol', position.symbol)
-          .eq('user_id', user.id);
+            average_price: newAveragePrice,
+          });
+
+        if (updateError) throw updateError;
       }
 
       // Update balance
-      await supabase
+      const { error: balanceUpdateError } = await supabase
         .from('paper_trading_balances')
         .update({
           balance: type === 'buy'
@@ -125,8 +132,11 @@ export const PositionsTable = ({ positions, stockPrices }: PositionsTableProps) 
         })
         .eq('user_id', user.id);
 
+      if (balanceUpdateError) throw balanceUpdateError;
+
       // Invalidate queries to trigger a refresh of the UI
       queryClient.invalidateQueries({ queryKey: ['portfolio'] });
+      queryClient.invalidateQueries({ queryKey: ['portfolio-value'] });
       queryClient.invalidateQueries({ queryKey: ['balance'] });
 
       toast({
