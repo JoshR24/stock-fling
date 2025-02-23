@@ -1,3 +1,4 @@
+
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -33,6 +34,7 @@ export const usePortfolioData = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
 
+      // First get positions
       const { data: positions, error: positionsError } = await supabase
         .from('paper_trading_positions')
         .select('*')
@@ -41,9 +43,115 @@ export const usePortfolioData = () => {
       if (positionsError) throw positionsError;
 
       if (!positions || positions.length === 0) {
+        console.log('No positions found');
         return { positions: [], stockPrices: [] };
       }
 
+      console.log('Current positions:', positions);
+
+      // Get ALL transactions to verify position accuracy
+      const { data: transactions, error: transactionsError } = await supabase
+        .from('paper_trading_transactions')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: true });
+
+      if (transactionsError) {
+        console.error('Error fetching transactions:', transactionsError);
+      } else {
+        console.log('All transactions:', transactions);
+        
+        // Calculate positions from transactions
+        const calculatedPositions = transactions.reduce((acc, transaction) => {
+          const symbol = transaction.symbol;
+          if (!acc[symbol]) {
+            acc[symbol] = { 
+              quantity: 0, 
+              totalCost: 0,
+              transactions: [] 
+            };
+          }
+          
+          const prevQuantity = acc[symbol].quantity;
+          const prevTotalCost = acc[symbol].totalCost;
+          
+          if (transaction.transaction_type === 'buy') {
+            acc[symbol].quantity += Number(transaction.quantity);
+            acc[symbol].totalCost += Number(transaction.total_amount);
+          } else {
+            // For sells, reduce quantity and adjust cost basis proportionally
+            acc[symbol].quantity -= Number(transaction.quantity);
+            if (prevQuantity > 0) {
+              const costPerShare = prevTotalCost / prevQuantity;
+              acc[symbol].totalCost -= Number(transaction.quantity) * costPerShare;
+            }
+          }
+          
+          acc[symbol].transactions.push({
+            ...transaction,
+            runningQuantity: acc[symbol].quantity,
+            runningCostBasis: acc[symbol].totalCost,
+            avgPrice: acc[symbol].quantity > 0 ? 
+              acc[symbol].totalCost / acc[symbol].quantity : 0
+          });
+          
+          return acc;
+        }, {});
+
+        // Compare calculated positions with actual positions
+        positions.forEach(position => {
+          const calculated = calculatedPositions[position.symbol];
+          if (calculated) {
+            const calculatedAvgPrice = calculated.quantity > 0 ? 
+              calculated.totalCost / calculated.quantity : 0;
+            
+            console.log(`\nPosition Analysis for ${position.symbol}:`);
+            console.log('Database Position:', {
+              quantity: Number(position.quantity),
+              avgPrice: Number(position.average_price),
+              totalCost: Number(position.quantity) * Number(position.average_price)
+            });
+            console.log('Calculated from Transactions:', {
+              quantity: calculated.quantity,
+              avgPrice: calculatedAvgPrice,
+              totalCost: calculated.totalCost
+            });
+            
+            // Calculate discrepancy if any
+            const quantityDiff = Math.abs(Number(position.quantity) - calculated.quantity);
+            const avgPriceDiff = Math.abs(Number(position.average_price) - calculatedAvgPrice);
+            
+            if (quantityDiff > 0.0001 || avgPriceDiff > 0.01) {
+              console.warn(`Discrepancy found for ${position.symbol}:`, {
+                quantityDiff,
+                avgPriceDiff,
+                transactionHistory: calculated.transactions.map(t => ({
+                  type: t.transaction_type,
+                  quantity: t.quantity,
+                  price: t.price,
+                  runningQty: t.runningQuantity,
+                  runningAvgPrice: t.avgPrice,
+                  timestamp: t.created_at
+                }))
+              });
+            }
+          } else {
+            console.warn(`No transactions found for position: ${position.symbol}`);
+          }
+        });
+
+        // Check for orphaned transactions (trades for symbols we don't have positions for)
+        Object.entries(calculatedPositions).forEach(([symbol, data]) => {
+          if (data.quantity !== 0 && !positions.find(p => p.symbol === symbol)) {
+            console.warn(`Orphaned transactions found for ${symbol}:`, {
+              calculatedQuantity: data.quantity,
+              transactions: data.transactions
+            });
+          }
+        });
+      }
+
+      // Get stock prices
       const { data: stockData, error: pricesError } = await supabase
         .from('stock_data_cache')
         .select('*')
@@ -72,9 +180,9 @@ export const usePortfolioData = () => {
         stockPrices
       } as PortfolioData;
     },
-    staleTime: 30000, // Data stays fresh for 30 seconds
-    gcTime: 5 * 60 * 1000, // Cache data for 5 minutes
-    refetchInterval: isMarketOpen() ? 60000 : false, // Only poll during market hours
+    staleTime: 30000,
+    gcTime: 5 * 60 * 1000,
+    refetchInterval: isMarketOpen() ? 60000 : false,
     refetchOnMount: false,
     refetchOnWindowFocus: false,
   });
