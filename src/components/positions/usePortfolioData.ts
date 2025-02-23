@@ -1,4 +1,3 @@
-
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -34,7 +33,58 @@ export const usePortfolioData = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
 
-      console.log('Fetching portfolio data for user:', user.id);
+      // First get the initial balance and transactions
+      const { data: balanceData, error: balanceError } = await supabase
+        .from('paper_trading_balances')
+        .select('balance, created_at')
+        .eq('user_id', user.id)
+        .single();
+
+      console.log('Initial account balance record:', balanceData);
+
+      const { data: transactions, error: transactionsError } = await supabase
+        .from('paper_trading_transactions')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: true });
+
+      if (transactions) {
+        let runningBalance = 100000; // Starting balance
+        console.log('Calculating running balance from transactions:');
+        
+        transactions.forEach(transaction => {
+          const amount = Number(transaction.total_amount);
+          const oldBalance = runningBalance;
+          
+          if (transaction.transaction_type === 'buy') {
+            runningBalance -= amount;
+          } else {
+            runningBalance += amount;
+          }
+          
+          console.log(`Transaction ${transaction.id}:`, {
+            type: transaction.transaction_type,
+            symbol: transaction.symbol,
+            quantity: transaction.quantity,
+            price: transaction.price,
+            totalAmount: amount,
+            balanceBefore: oldBalance,
+            balanceAfter: runningBalance,
+            timestamp: transaction.created_at
+          });
+        });
+
+        console.log('Final calculated balance:', runningBalance);
+        console.log('Actual balance in database:', balanceData?.balance);
+        
+        if (Math.abs(runningBalance - Number(balanceData?.balance)) > 0.01) {
+          console.warn('Balance discrepancy detected!', {
+            calculatedBalance: runningBalance,
+            databaseBalance: balanceData?.balance,
+            difference: runningBalance - Number(balanceData?.balance)
+          });
+        }
+      }
 
       // First get positions
       const { data: positions, error: positionsError } = await supabase
