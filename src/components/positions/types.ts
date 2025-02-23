@@ -25,6 +25,4 @@ export interface PortfolioData {
 export interface PortfolioTotals {
   totalValue: number;
   totalGainLoss: number;
-  initialBalance: number;
-  currentTotal: number;
 }
