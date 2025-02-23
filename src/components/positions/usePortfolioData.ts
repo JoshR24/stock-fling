@@ -33,26 +33,27 @@ export const usePortfolioData = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
 
-      // First get the initial balance and transactions
-      const { data: balanceData, error: balanceError } = await supabase
+      // Get initial balance
+      const { data: initialBalanceData, error: initialBalanceError } = await supabase
         .from('paper_trading_balances')
         .select('balance, created_at')
         .eq('user_id', user.id)
         .single();
 
-      console.log('Initial account balance record:', balanceData);
+      console.log('Initial account balance record:', initialBalanceData);
 
-      const { data: transactions, error: transactionsError } = await supabase
+      // Get all transactions for balance verification
+      const { data: allTransactions, error: allTransactionsError } = await supabase
         .from('paper_trading_transactions')
         .select('*')
         .eq('user_id', user.id)
         .order('created_at', { ascending: true });
 
-      if (transactions) {
+      if (allTransactions) {
         let runningBalance = 100000; // Starting balance
         console.log('Calculating running balance from transactions:');
         
-        transactions.forEach(transaction => {
+        allTransactions.forEach(transaction => {
           const amount = Number(transaction.total_amount);
           const oldBalance = runningBalance;
           
@@ -75,18 +76,18 @@ export const usePortfolioData = () => {
         });
 
         console.log('Final calculated balance:', runningBalance);
-        console.log('Actual balance in database:', balanceData?.balance);
+        console.log('Actual balance in database:', initialBalanceData?.balance);
         
-        if (Math.abs(runningBalance - Number(balanceData?.balance)) > 0.01) {
+        if (Math.abs(runningBalance - Number(initialBalanceData?.balance)) > 0.01) {
           console.warn('Balance discrepancy detected!', {
             calculatedBalance: runningBalance,
-            databaseBalance: balanceData?.balance,
-            difference: runningBalance - Number(balanceData?.balance)
+            databaseBalance: initialBalanceData?.balance,
+            difference: runningBalance - Number(initialBalanceData?.balance)
           });
         }
       }
 
-      // First get positions
+      // Get positions
       const { data: positions, error: positionsError } = await supabase
         .from('paper_trading_positions')
         .select('*')
@@ -101,20 +102,13 @@ export const usePortfolioData = () => {
 
       console.log('Current positions:', positions);
 
-      // Get transaction history to verify cost basis
-      const { data: transactions, error: transactionsError } = await supabase
-        .from('paper_trading_transactions')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: true });
-
-      if (transactionsError) {
-        console.error('Error fetching transactions:', transactionsError);
+      if (allTransactionsError) {
+        console.error('Error fetching transactions:', allTransactionsError);
       } else {
-        console.log('All transactions:', transactions);
+        console.log('All transactions:', allTransactions);
         
         // Calculate expected position values from transactions
-        const calculatedPositions = transactions.reduce((acc, transaction) => {
+        const calculatedPositions = allTransactions.reduce((acc, transaction) => {
           const symbol = transaction.symbol;
           if (!acc[symbol]) {
             acc[symbol] = { quantity: 0, totalCost: 0 };
@@ -155,6 +149,7 @@ export const usePortfolioData = () => {
         });
       }
 
+      // Get current stock prices
       const { data: stockData, error: pricesError } = await supabase
         .from('stock_data_cache')
         .select('*')
@@ -179,17 +174,6 @@ export const usePortfolioData = () => {
       });
 
       console.log('Current stock prices:', stockPrices);
-
-      // Get current cash balance
-      const { data: balanceData, error: balanceError } = await supabase
-        .from('paper_trading_balances')
-        .select('balance')
-        .eq('user_id', user.id)
-        .single();
-
-      if (!balanceError && balanceData) {
-        console.log('Current cash balance:', balanceData.balance);
-      }
 
       // Calculate totals for verification
       let totalInvestment = 0;
@@ -217,8 +201,8 @@ export const usePortfolioData = () => {
         totalInvestment,
         currentValue,
         totalGainLoss: currentValue - totalInvestment,
-        cashBalance: balanceData?.balance || 0,
-        accountTotal: (balanceData?.balance || 0) + currentValue
+        cashBalance: initialBalanceData?.balance || 0,
+        accountTotal: (initialBalanceData?.balance || 0) + currentValue
       });
 
       return {
