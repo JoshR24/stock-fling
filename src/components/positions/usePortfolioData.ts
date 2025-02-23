@@ -33,61 +33,6 @@ export const usePortfolioData = () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('User not authenticated');
 
-      // Get initial balance
-      const { data: initialBalanceData, error: initialBalanceError } = await supabase
-        .from('paper_trading_balances')
-        .select('balance, created_at')
-        .eq('user_id', user.id)
-        .single();
-
-      console.log('Initial account balance record:', initialBalanceData);
-
-      // Get all transactions for balance verification
-      const { data: allTransactions, error: allTransactionsError } = await supabase
-        .from('paper_trading_transactions')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: true });
-
-      if (allTransactions) {
-        let runningBalance = 100000; // Starting balance
-        console.log('Calculating running balance from transactions:');
-        
-        allTransactions.forEach(transaction => {
-          const amount = Number(transaction.total_amount);
-          const oldBalance = runningBalance;
-          
-          if (transaction.transaction_type === 'buy') {
-            runningBalance -= amount;
-          } else {
-            runningBalance += amount;
-          }
-          
-          console.log(`Transaction ${transaction.id}:`, {
-            type: transaction.transaction_type,
-            symbol: transaction.symbol,
-            quantity: transaction.quantity,
-            price: transaction.price,
-            totalAmount: amount,
-            balanceBefore: oldBalance,
-            balanceAfter: runningBalance,
-            timestamp: transaction.created_at
-          });
-        });
-
-        console.log('Final calculated balance:', runningBalance);
-        console.log('Actual balance in database:', initialBalanceData?.balance);
-        
-        if (Math.abs(runningBalance - Number(initialBalanceData?.balance)) > 0.01) {
-          console.warn('Balance discrepancy detected!', {
-            calculatedBalance: runningBalance,
-            databaseBalance: initialBalanceData?.balance,
-            difference: runningBalance - Number(initialBalanceData?.balance)
-          });
-        }
-      }
-
-      // Get positions
       const { data: positions, error: positionsError } = await supabase
         .from('paper_trading_positions')
         .select('*')
@@ -96,60 +41,9 @@ export const usePortfolioData = () => {
       if (positionsError) throw positionsError;
 
       if (!positions || positions.length === 0) {
-        console.log('No positions found');
         return { positions: [], stockPrices: [] };
       }
 
-      console.log('Current positions:', positions);
-
-      if (allTransactionsError) {
-        console.error('Error fetching transactions:', allTransactionsError);
-      } else {
-        console.log('All transactions:', allTransactions);
-        
-        // Calculate expected position values from transactions
-        const calculatedPositions = allTransactions.reduce((acc, transaction) => {
-          const symbol = transaction.symbol;
-          if (!acc[symbol]) {
-            acc[symbol] = { quantity: 0, totalCost: 0 };
-          }
-          
-          if (transaction.transaction_type === 'buy') {
-            acc[symbol].quantity += Number(transaction.quantity);
-            acc[symbol].totalCost += Number(transaction.total_amount);
-          } else {
-            acc[symbol].quantity -= Number(transaction.quantity);
-            acc[symbol].totalCost -= (Number(transaction.quantity) * (acc[symbol].totalCost / acc[symbol].quantity));
-          }
-          
-          return acc;
-        }, {});
-
-        console.log('Calculated positions from transactions:', calculatedPositions);
-        
-        // Compare with actual positions
-        positions.forEach(position => {
-          const calculated = calculatedPositions[position.symbol];
-          if (calculated) {
-            const calculatedAvgPrice = calculated.quantity > 0 ? 
-              calculated.totalCost / calculated.quantity : 0;
-            
-            console.log(`Position comparison for ${position.symbol}:`);
-            console.log('Database position:', {
-              quantity: Number(position.quantity),
-              avgPrice: Number(position.average_price),
-              totalCost: Number(position.quantity) * Number(position.average_price)
-            });
-            console.log('Calculated from transactions:', {
-              quantity: calculated.quantity,
-              avgPrice: calculatedAvgPrice,
-              totalCost: calculated.totalCost
-            });
-          }
-        });
-      }
-
-      // Get current stock prices
       const { data: stockData, error: pricesError } = await supabase
         .from('stock_data_cache')
         .select('*')
@@ -173,46 +67,14 @@ export const usePortfolioData = () => {
         };
       });
 
-      console.log('Current stock prices:', stockPrices);
-
-      // Calculate totals for verification
-      let totalInvestment = 0;
-      let currentValue = 0;
-
-      positions.forEach(position => {
-        const price = stockPrices.find(p => p.symbol === position.symbol)?.currentPrice || 0;
-        const quantity = Number(position.quantity);
-        const avgPrice = Number(position.average_price);
-        
-        totalInvestment += quantity * avgPrice;
-        currentValue += quantity * price;
-
-        console.log(`Position details for ${position.symbol}:`, {
-          quantity,
-          avgPrice,
-          currentPrice: price,
-          investment: quantity * avgPrice,
-          marketValue: quantity * price,
-          gainLoss: (quantity * price) - (quantity * avgPrice)
-        });
-      });
-
-      console.log('Portfolio summary:', {
-        totalInvestment,
-        currentValue,
-        totalGainLoss: currentValue - totalInvestment,
-        cashBalance: initialBalanceData?.balance || 0,
-        accountTotal: (initialBalanceData?.balance || 0) + currentValue
-      });
-
       return {
         positions,
         stockPrices
       } as PortfolioData;
     },
-    staleTime: 30000,
-    gcTime: 5 * 60 * 1000,
-    refetchInterval: isMarketOpen() ? 60000 : false,
+    staleTime: 30000, // Data stays fresh for 30 seconds
+    gcTime: 5 * 60 * 1000, // Cache data for 5 minutes
+    refetchInterval: isMarketOpen() ? 60000 : false, // Only poll during market hours
     refetchOnMount: false,
     refetchOnWindowFocus: false,
   });
