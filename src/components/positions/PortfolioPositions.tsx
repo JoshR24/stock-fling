@@ -15,18 +15,43 @@ export const PortfolioPositions = ({ stocks }: PortfolioPositionsProps) => {
 
     const { positions, stockPrices } = portfolioData;
 
+    console.log('Calculating portfolio totals from:', {
+      positions: positions.map(p => ({
+        symbol: p.symbol,
+        quantity: Number(p.quantity),
+        avgPrice: Number(p.average_price)
+      })),
+      prices: stockPrices
+    });
+
     const totals = positions.reduce((acc, position) => {
       const stockPrice = stockPrices.find(s => s.symbol === position.symbol);
       if (!stockPrice) return acc;
 
-      const currentValue = position.quantity * stockPrice.currentPrice;
-      const costBasis = position.quantity * position.average_price;
+      const quantity = Number(position.quantity);
+      const avgPrice = Number(position.average_price);
+      const currentPrice = stockPrice.currentPrice;
+      
+      const currentValue = quantity * currentPrice;
+      const costBasis = quantity * avgPrice;
+      const positionGainLoss = currentValue - costBasis;
+
+      console.log(`Position calculation for ${position.symbol}:`, {
+        quantity,
+        avgPrice,
+        currentPrice,
+        currentValue,
+        costBasis,
+        positionGainLoss
+      });
       
       return {
         totalValue: acc.totalValue + currentValue,
-        totalGainLoss: acc.totalGainLoss + (currentValue - costBasis)
+        totalGainLoss: acc.totalGainLoss + positionGainLoss
       };
     }, { totalValue: 0, totalGainLoss: 0 });
+
+    console.log('Final portfolio totals:', totals);
 
     return totals;
   }, [portfolioData]);
