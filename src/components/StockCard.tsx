@@ -48,7 +48,6 @@ export const StockCard = ({ stock, onSwipe }: StockCardProps) => {
   );
 
   const isMarketOpen = (): boolean => {
-    // Get current time in New York (ET)
     const now = new Date();
     const nyTime = new Date(now.toLocaleString("en-US", { timeZone: "America/New_York" }));
     
@@ -57,7 +56,6 @@ export const StockCard = ({ stock, onSwipe }: StockCardProps) => {
     const minutes = nyTime.getMinutes();
     const currentTimeInMinutes = hours * 60 + minutes;
     
-    // Market hours: Monday (1) to Friday (5), 9:30 AM to 4:00 PM ET
     const marketOpenInMinutes = 9 * 60 + 30;  // 9:30 AM
     const marketCloseInMinutes = 16 * 60;     // 4:00 PM
     
@@ -66,22 +64,17 @@ export const StockCard = ({ stock, onSwipe }: StockCardProps) => {
            currentTimeInMinutes < marketCloseInMinutes;
   };
 
-  // Fetch real-time stock data
   const { data: stockData } = useQuery({
     queryKey: ['stockData', stock.symbol],
     queryFn: async () => {
       try {
-        console.log('Fetching data from cache for:', stock.symbol);
         const { data, error } = await supabase
           .from('stock_data_cache')
           .select('data')
           .eq('symbol', stock.symbol)
           .single();
 
-        if (error) {
-          console.error('Error fetching stock data:', error);
-          throw error;
-        }
+        if (error) throw error;
 
         const parsedData = data?.data as unknown as StockData;
         if (!parsedData || typeof parsedData !== 'object') {
@@ -99,10 +92,12 @@ export const StockCard = ({ stock, onSwipe }: StockCardProps) => {
         return null;
       }
     },
+    staleTime: isMarketOpen() ? 30000 : 5 * 60 * 1000, // 30s during market hours, 5min otherwise
     refetchInterval: isMarketOpen() ? 60000 : false, // Only poll during market hours
+    refetchOnMount: isMarketOpen(), // Only fetch new data on mount during market hours
+    refetchOnWindowFocus: isMarketOpen(), // Only fetch on window focus during market hours
   });
 
-  // Update stock data with real-time values or fallback to cached data
   const updatedStock: Stock = {
     ...stock,
     price: stockData?.price ?? stock.price,
