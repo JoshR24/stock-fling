@@ -142,10 +142,25 @@ export const StockCardBack = ({ stock, onClose, onPurchaseComplete }: StockCardB
 
       if (transactionError) throw transactionError;
 
-      // Update position
+      // Update position - fixed calculation logic
       if (existingPosition) {
-        const newQuantity = existingPosition.quantity + numQuantity;
-        const newAveragePrice = ((existingPosition.quantity * existingPosition.average_price) + totalAmount) / newQuantity;
+        // Calculate new quantity and average price properly
+        const newQuantity = parseFloat(existingPosition.quantity) + numQuantity;
+        
+        // Calculate new average price: ((old_qty * old_avg_price) + (new_qty * new_price)) / total_qty
+        const newAveragePrice = (
+          (parseFloat(existingPosition.quantity) * parseFloat(existingPosition.average_price)) + 
+          (numQuantity * stock.price)
+        ) / newQuantity;
+
+        console.log('Updating position with:', {
+          oldQty: parseFloat(existingPosition.quantity),
+          newQty: numQuantity,
+          totalQty: newQuantity,
+          oldAvgPrice: parseFloat(existingPosition.average_price),
+          newPrice: stock.price,
+          newAvgPrice: newAveragePrice
+        });
 
         const { error: updateError } = await supabase
           .from('paper_trading_positions')
@@ -157,6 +172,7 @@ export const StockCardBack = ({ stock, onClose, onPurchaseComplete }: StockCardB
 
         if (updateError) throw updateError;
       } else {
+        // Create new position
         const { error: insertError } = await supabase
           .from('paper_trading_positions')
           .insert({

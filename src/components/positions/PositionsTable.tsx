@@ -92,16 +92,43 @@ export const PositionsTable = ({ positions, stockPrices }: PositionsTableProps) 
 
       if (transactionError) throw transactionError;
 
-      // Update position
-      const newQuantity = type === 'buy' 
-        ? position.quantity + tradeQuantity
-        : position.quantity - tradeQuantity;
-
-      const newAveragePrice = type === 'buy'
-        ? ((position.quantity * position.average_price) + totalAmount) / newQuantity
-        : position.average_price;
+      // Update position with fixed calculation logic
+      let newQuantity, newAveragePrice;
+      
+      if (type === 'buy') {
+        // For buy: Add quantity and recalculate average price
+        newQuantity = position.quantity + tradeQuantity;
+        
+        // Calculate new average price: ((old_qty * old_avg_price) + (new_qty * new_price)) / total_qty
+        newAveragePrice = (
+          (position.quantity * position.average_price) + 
+          (tradeQuantity * stockPrice.currentPrice)
+        ) / newQuantity;
+        
+        console.log('Buy calculation:', {
+          symbol: position.symbol,
+          oldQuantity: position.quantity,
+          addedQuantity: tradeQuantity,
+          newQuantity: newQuantity,
+          oldAvgPrice: position.average_price,
+          newPrice: stockPrice.currentPrice,
+          newAvgPrice: newAveragePrice
+        });
+      } else {
+        // For sell: Reduce quantity, average price stays the same
+        newQuantity = position.quantity - tradeQuantity;
+        newAveragePrice = position.average_price;
+        
+        console.log('Sell calculation:', {
+          symbol: position.symbol,
+          oldQuantity: position.quantity,
+          soldQuantity: tradeQuantity,
+          newQuantity: newQuantity
+        });
+      }
 
       if (newQuantity === 0) {
+        // Delete position if no shares left
         const { error: deleteError } = await supabase
           .from('paper_trading_positions')
           .delete()
@@ -110,14 +137,15 @@ export const PositionsTable = ({ positions, stockPrices }: PositionsTableProps) 
           
         if (deleteError) throw deleteError;
       } else {
+        // Update position
         const { error: updateError } = await supabase
           .from('paper_trading_positions')
-          .upsert({ 
-            user_id: user.id,
-            symbol: position.symbol,
+          .update({ 
             quantity: newQuantity,
             average_price: newAveragePrice,
-          });
+          })
+          .eq('symbol', position.symbol)
+          .eq('user_id', user.id);
 
         if (updateError) throw updateError;
       }
