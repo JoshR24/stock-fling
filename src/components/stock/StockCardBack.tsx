@@ -1,6 +1,6 @@
 
 import { Stock } from "@/lib/mockStocks";
-import { Button } from "../ui/card";
+import { Button } from "../ui/button";
 import { X, ShoppingCart, Plus } from "lucide-react";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
