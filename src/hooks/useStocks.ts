@@ -1,3 +1,4 @@
+
 import { useState, useCallback } from "react";
 import { Stock } from "@/lib/mockStocks";
 import { useToast } from "@/hooks/use-toast";
@@ -137,55 +138,10 @@ export const useStocks = () => {
   };
 
   const handleSwipe = useCallback(async (direction: "left" | "right") => {
+    // Now we just remove the card on swipe, regardless of direction
+    // The actual "right swipe" functionality is handled within the StockCard component
     setStocks((prev) => {
-      const [current, ...rest] = prev;
-      if (direction === "right" && current) {
-        const saveToPortfolio = async () => {
-          try {
-            const { data: { user } } = await supabase.auth.getUser();
-            
-            if (!user) {
-              toast({
-                title: "Error",
-                description: "You must be logged in to save to portfolio.",
-                variant: "destructive",
-              });
-              return;
-            }
-
-            const { error } = await supabase
-              .from('portfolios')
-              .insert({ 
-                symbol: current.symbol,
-                user_id: user.id
-              });
-
-            if (error) {
-              console.error('Error saving to portfolio:', error);
-              toast({
-                title: "Error",
-                description: "Failed to save stock to portfolio. Please try again.",
-                variant: "destructive",
-              });
-              return;
-            }
-
-            toast({
-              title: "Added to Portfolio",
-              description: `${current.symbol} has been added to your portfolio.`,
-            });
-          } catch (error) {
-            console.error('Error in saveToPortfolio:', error);
-            toast({
-              title: "Error",
-              description: "Failed to save stock to portfolio. Please try again.",
-              variant: "destructive",
-            });
-          }
-        };
-
-        saveToPortfolio();
-      }
+      const [_, ...rest] = prev;
       return rest;
     });
 
