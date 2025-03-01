@@ -83,7 +83,7 @@ export const usePortfolioData = () => {
         stockPrices
       } as PortfolioData;
     },
-    staleTime: isMarketOpen() ? 30000 : 5 * 60 * 1000, // 30s during market hours, 5min otherwise
+    staleTime: isMarketOpen() ? 30000 : 5 * 60 * 60 * 1000, // 30s during market hours, 5 hours otherwise
     gcTime: 5 * 60 * 1000,
     refetchInterval: isMarketOpen() ? 60000 : false, // Only poll during market hours
     refetchOnMount: isMarketOpen(), // Only fetch new data on mount during market hours
