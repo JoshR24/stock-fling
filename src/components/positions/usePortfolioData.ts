@@ -1,4 +1,3 @@
-
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -83,14 +82,13 @@ export const usePortfolioData = () => {
         stockPrices
       } as PortfolioData;
     },
-    staleTime: isMarketOpen() ? 30000 : 5 * 60 * 60 * 1000, // 30s during market hours, 5 hours otherwise
+    staleTime: isMarketOpen() ? 30000 : 1 * 60 * 60 * 1000, // 30s during market hours, 1 hour otherwise
     gcTime: 5 * 60 * 1000,
     refetchInterval: isMarketOpen() ? 60000 : false, // Only poll during market hours
     refetchOnMount: isMarketOpen(), // Only fetch new data on mount during market hours
     refetchOnWindowFocus: isMarketOpen(), // Only fetch on window focus during market hours
   });
 
-  // Only set up realtime subscription during market hours
   useEffect(() => {
     if (!portfolioData?.positions.length || !isMarketOpen()) return;
 
